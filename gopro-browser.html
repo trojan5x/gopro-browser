@@ -1,0 +1,1763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GoPro Browser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080808;--surface:#0e0e0e;--elevated:#141414;--raised:#1a1a1a;
+  --border:rgba(255,255,255,0.07);--border-hi:rgba(255,255,255,0.14);
+  --text:#ebebeb;--text2:#888;--text3:#404040;
+  --accent:#f5a623;--accent-lo:rgba(245,166,35,0.1);--accent-md:rgba(245,166,35,0.22);
+  --green:#34d399;--red:#f87171;--blue:#60a5fa;
+  --sans:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono','SF Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font-family:var(--sans);cursor:pointer}
+
+/* APP */
+#app{display:grid;grid-template-rows:52px 1fr;height:100vh;overflow:hidden}
+
+/* TOPBAR */
+#topbar{display:flex;align-items:center;gap:2px;padding:0 16px;border-bottom:1px solid var(--border);background:var(--surface);user-select:none;z-index:10;flex-shrink:0}
+#logo{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.12em;color:var(--text);margin-right:12px;flex-shrink:0}
+#logo .dot{width:7px;height:7px;border-radius:50%;background:var(--text3);transition:background .4s;flex-shrink:0}
+#logo .dot.live{background:var(--accent);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(245,166,35,.4)}50%{box-shadow:0 0 0 5px rgba(245,166,35,0)}}
+.tb-sep{width:1px;height:18px;background:var(--border);margin:0 8px;flex-shrink:0}
+#conn-status{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)}
+#conn-status .indicator{width:5px;height:5px;border-radius:50%;background:var(--text3);transition:background .3s}
+#conn-status.connected .indicator{background:var(--green);box-shadow:0 0 8px rgba(52,211,153,.5)}
+#conn-status.error .indicator{background:var(--red)}
+#conn-status.connected #conn-label{color:var(--text)}
+#conn-status.error #conn-label{color:var(--red)}
+
+/* LIVE STATUS (topbar) */
+#live-status{display:none;align-items:center;gap:0;margin:0 4px}
+#live-status.show{display:flex}
+.live-chip{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--text2);padding:3px 8px;border-radius:4px}
+.live-chip.rec-active{color:var(--red)}
+.rec-dot{width:6px;height:6px;border-radius:50%;background:var(--text3)}
+.rec-dot.active{background:var(--red);animation:blink 1s step-end infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.live-sep{width:1px;height:12px;background:var(--border);margin:0 2px}
+
+.tb-spacer{flex:1}
+.tb-btn{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);background:none;border:none;padding:6px 10px;border-radius:6px;transition:all .15s;white-space:nowrap}
+.tb-btn:hover{color:var(--text);background:var(--elevated)}
+.tb-btn.primary{color:#000;background:var(--accent);font-weight:500}
+.tb-btn.primary:hover{background:#e89b1a}
+.tb-btn.danger{color:var(--red);border:1px solid rgba(248,113,113,.2)}
+.tb-btn.danger:hover{background:rgba(248,113,113,.08)}
+.tb-btn svg{width:13px;height:13px;flex-shrink:0}
+.tb-btn:disabled{opacity:.3;cursor:not-allowed}
+#btn-shutter{color:var(--red);border:1px solid rgba(248,113,113,.25)}
+#btn-shutter:hover{background:rgba(248,113,113,.08)}
+#btn-shutter.recording{background:var(--red);color:#fff;border-color:transparent}
+#btn-shutter.recording:hover{background:#e05252}
+
+/* MAIN */
+#main{display:grid;grid-template-columns:204px 1fr;overflow:hidden}
+
+/* SIDEBAR */
+#sidebar{border-right:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;overflow:hidden}
+.sb-section{padding:16px 14px 10px}
+.sb-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);margin-bottom:8px}
+.sb-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0}
+.sb-row .k{font-size:12px;color:var(--text2)}
+.sb-row .v{font-family:var(--mono);font-size:11px;color:var(--text)}
+.sb-div{height:1px;background:var(--border)}
+
+/* STORAGE VIZ */
+#storage-wrap{padding:12px 14px 10px}
+#storage-bar{height:4px;background:var(--elevated);border-radius:99px;overflow:hidden;display:flex;margin-bottom:8px}
+#sb-vid-bar{background:var(--blue);height:100%;transition:width .5s}
+#sb-pic-bar{background:var(--green);height:100%;transition:width .5s}
+#sb-lrv-bar{background:var(--accent);height:100%;transition:width .5s}
+#storage-legend{display:flex;flex-direction:column;gap:3px}
+.storage-row{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--text2)}
+.storage-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px;vertical-align:middle}
+
+/* FILTER */
+#filter-bar{padding:10px 10px 8px}
+.filter-btn{display:flex;align-items:center;justify-content:space-between;width:100%;padding:6px 8px;border-radius:6px;cursor:pointer;background:none;border:none;color:var(--text2);font-family:var(--sans);font-size:12px;text-align:left;transition:all .12s;margin-bottom:1px}
+.filter-btn:hover{background:var(--elevated);color:var(--text)}
+.filter-btn.active{background:var(--accent-lo);color:var(--accent)}
+.filter-btn .count{font-family:var(--mono);font-size:10px;color:var(--text3)}
+.filter-btn.active .count{color:var(--accent)}
+
+/* SIDEBAR BOTTOM */
+#sb-bottom{margin-top:auto;padding:12px 14px;border-top:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--text3);line-height:1.9}
+#sb-bottom a{color:var(--text3);text-decoration:none}
+#sb-bottom a:hover{color:var(--text2)}
+
+/* CONTENT */
+#content{display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+
+/* SELECTION BAR */
+#sel-bar{display:none;align-items:center;gap:8px;padding:7px 16px;background:var(--accent-lo);border-bottom:1px solid var(--accent-md);flex-shrink:0}
+#sel-bar.show{display:flex}
+.sel-count{font-size:12px;color:var(--accent);font-weight:500;margin-right:auto}
+.sel-btn{font-size:11px;background:none;border-radius:5px;padding:4px 10px;transition:all .12s;border:1px solid var(--border)}
+.sel-btn.dl{color:var(--accent);border-color:var(--accent-md)}
+.sel-btn.dl:hover{background:var(--accent-md)}
+.sel-btn.del{color:var(--red);border-color:rgba(248,113,113,.25)}
+.sel-btn.del:hover{background:rgba(248,113,113,.08)}
+.sel-btn.clr{color:var(--text2)}
+.sel-btn.clr:hover{color:var(--text)}
+#prefix-wrap{display:flex;align-items:center;gap:6px}
+#prefix-wrap label{font-size:11px;color:var(--text2)}
+#dl-prefix{background:var(--elevated);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:11px;padding:3px 7px;border-radius:4px;outline:none;width:130px}
+#dl-prefix:focus{border-color:var(--accent)}
+
+/* TOOLBAR */
+#toolbar{display:flex;align-items:center;gap:5px;padding:9px 14px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+#search-wrap{position:relative;flex:1;max-width:240px}
+#search-wrap svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:12px;height:12px;color:var(--text3);pointer-events:none}
+#search{width:100%;background:var(--elevated);border:1px solid var(--border);color:var(--text);font-family:var(--sans);font-size:12px;padding:5px 9px 5px 28px;border-radius:6px;outline:none;transition:border-color .15s}
+#search:focus{border-color:var(--border-hi)}
+#search::placeholder{color:var(--text3)}
+.sort-btn{font-size:12px;background:none;border:1px solid transparent;color:var(--text2);padding:5px 9px;border-radius:6px;transition:all .12s}
+.sort-btn:hover{color:var(--text);background:var(--elevated)}
+.sort-btn.active{color:var(--text);background:var(--elevated);border-color:var(--border)}
+#view-toggle{display:flex;gap:1px;margin-left:auto}
+.view-btn{background:none;border:none;color:var(--text3);padding:5px 7px;cursor:pointer;border-radius:5px;transition:all .12s;line-height:0}
+.view-btn svg{width:14px;height:14px}
+.view-btn:hover{color:var(--text2)}
+.view-btn.active{color:var(--text);background:var(--elevated)}
+
+/* MEDIA WRAP */
+#media-wrap{flex:1;overflow-y:auto;padding:16px}
+#media-wrap::-webkit-scrollbar{width:4px}
+#media-wrap::-webkit-scrollbar-thumb{background:var(--elevated);border-radius:99px}
+
+/* FLAT GRID */
+#media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:10px}
+#media-grid.list-view{grid-template-columns:1fr;gap:1px}
+#media-grid.hidden{display:none}
+
+/* FILE CARD */
+.media-card{position:relative;border-radius:8px;overflow:hidden;border:1px solid transparent;cursor:pointer;background:var(--elevated);transition:border-color .15s,transform .15s,box-shadow .15s;animation:fadeUp .2s ease both}
+.media-card:hover{border-color:var(--border-hi);transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,.55)}
+.media-card.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.card-thumb{width:100%;aspect-ratio:16/9;background:var(--surface);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.card-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.card-thumb .no-thumb{display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--text3)}
+.card-thumb .no-thumb svg{width:22px;height:22px}
+.card-type-badge{position:absolute;top:6px;right:6px;font-family:var(--mono);font-size:8px;font-weight:500;letter-spacing:.06em;padding:2px 5px;border-radius:3px;text-transform:uppercase;backdrop-filter:blur(8px)}
+.card-type-badge.mp4{background:rgba(96,165,250,.9);color:#fff}
+.card-type-badge.jpg,.card-type-badge.jpeg{background:rgba(52,211,153,.9);color:#fff}
+.card-type-badge.lrv{background:rgba(251,191,36,.9);color:#000}
+.card-info{padding:9px 11px 10px}
+.card-name{font-family:var(--mono);font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+.card-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--text2)}
+
+/* LIST VIEW */
+#media-grid.list-view .media-card{border-radius:3px;background:transparent;border-color:transparent}
+#media-grid.list-view .media-card:hover{background:var(--elevated);transform:none;box-shadow:none;border-color:transparent}
+#media-grid.list-view .card-inner{display:flex;align-items:center;gap:10px;padding:7px 10px}
+#media-grid.list-view .card-thumb{width:60px;height:34px;aspect-ratio:unset;flex-shrink:0;border-radius:3px}
+#media-grid.list-view .card-info{flex:1;padding:0;min-width:0}
+#media-grid.list-view .card-name{font-size:12px;margin-bottom:2px}
+#media-grid.list-view .card-type-badge{position:static;flex-shrink:0}
+#media-grid.list-view .card-actions{display:flex;gap:5px;flex-shrink:0}
+.inline-btn{font-family:var(--mono);font-size:10px;background:var(--elevated);border:1px solid var(--border);color:var(--text2);padding:3px 8px;border-radius:4px;transition:all .12s}
+.inline-btn:hover{color:var(--text);border-color:var(--border-hi)}
+.inline-btn.dl{color:var(--accent);border-color:var(--accent-md);background:var(--accent-lo)}
+.inline-btn.del{color:var(--red);border-color:rgba(248,113,113,.2)}
+
+/* SESSION CARDS (grouped view) */
+#media-grid.grouped-view{grid-template-columns:1fr;gap:0}
+.date-group{margin-bottom:24px}
+.date-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:0 2px}
+.date-label{font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.04em}
+.date-line{flex:1;height:1px;background:var(--border)}
+.date-meta-label{font-family:var(--mono);font-size:10px;color:var(--text3)}
+.session-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:10px}
+
+.session-card{position:relative;border-radius:8px;overflow:visible;border:1px solid transparent;cursor:pointer;background:var(--elevated);transition:border-color .15s,transform .15s,box-shadow .15s;animation:fadeUp .2s ease both}
+.session-card:hover{border-color:var(--border-hi);transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,.55)}
+.session-card-inner{border-radius:8px;overflow:hidden;position:relative}
+.session-card::before{content:'';position:absolute;bottom:-4px;left:4px;right:-4px;height:100%;background:var(--raised);border:1px solid var(--border);border-radius:8px;z-index:-1}
+.session-card::after{content:'';position:absolute;bottom:-7px;left:7px;right:-7px;height:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:-2}
+.session-thumb{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:var(--surface)}
+.session-no-thumb{width:100%;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;background:var(--surface);color:var(--text3)}
+.session-no-thumb svg{width:24px;height:24px}
+.chapter-badge{position:absolute;top:6px;left:6px;background:rgba(0,0,0,.75);color:#fff;font-family:var(--mono);font-size:8px;padding:2px 6px;border-radius:3px;backdrop-filter:blur(4px)}
+.session-info{padding:9px 11px 10px}
+.session-name-text{font-family:var(--mono);font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;cursor:text;display:block}
+.session-name-text:hover{color:var(--accent)}
+.session-name-input{font-family:var(--mono);font-size:11px;color:var(--text);background:var(--surface);border:1px solid var(--accent);border-radius:4px;padding:1px 5px;outline:none;width:100%;margin-bottom:3px}
+.session-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--text2)}
+
+/* BACK BUTTON (session drill-down) */
+#back-btn{display:none;align-items:center;gap:6px;font-size:12px;color:var(--text2);background:none;border:none;padding:5px 8px;border-radius:5px;transition:all .12s}
+#back-btn:hover{color:var(--text);background:var(--elevated)}
+#back-btn.show{display:flex}
+#breadcrumb{font-size:12px;color:var(--text2);font-family:var(--mono)}
+
+/* EMPTY STATE */
+#empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;text-align:center;padding:40px}
+#empty-state.hidden{display:none}
+.empty-icon{width:44px;height:44px;opacity:.1}
+.empty-title{font-size:13px;font-weight:500;color:var(--text)}
+.empty-sub{font-size:12px;color:var(--text2);max-width:320px;line-height:1.7}
+.code-block{background:var(--elevated);border:1px solid var(--border);border-left:2px solid var(--accent);padding:12px 14px;border-radius:7px;font-family:var(--mono);font-size:11px;color:var(--text2);text-align:left;line-height:1.9;max-width:340px;width:100%}
+.code-block .cmd{color:var(--text)}
+.code-block .comment{color:var(--text3)}
+
+/* STATUS BAR */
+#statusbar{display:flex;align-items:center;gap:10px;padding:5px 16px;border-top:1px solid var(--border);background:var(--surface);font-family:var(--mono);font-size:10px;color:var(--text3);flex-shrink:0}
+#statusbar .sep{width:1px;height:10px;background:var(--border)}
+
+/* DOWNLOAD TRAY */
+#dl-tray{position:fixed;bottom:0;right:0;width:340px;background:var(--surface);border:1px solid var(--border-hi);border-bottom:none;border-radius:10px 0 0 0;z-index:200;transform:translateY(100%);transition:transform .25s cubic-bezier(.34,1.56,.64,1)}
+#dl-tray.open{transform:translateY(0)}
+#dl-tray-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 8px;border-bottom:1px solid var(--border);cursor:pointer}
+#dl-tray-title{font-size:12px;font-weight:500;color:var(--text)}
+#dl-tray-sub{font-family:var(--mono);font-size:10px;color:var(--text2)}
+.tray-hdr-right{display:flex;align-items:center;gap:8px}
+.tray-btn{font-family:var(--mono);font-size:10px;color:var(--text2);background:none;border:none;padding:2px 6px;border-radius:3px;transition:all .12s}
+.tray-btn:hover{color:var(--text);background:var(--elevated)}
+#dl-tray-list{max-height:200px;overflow-y:auto;padding:6px 0}
+#dl-tray-list::-webkit-scrollbar{width:3px}
+#dl-tray-list::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:99px}
+.dl-item{display:flex;align-items:center;gap:8px;padding:6px 14px;transition:background .12s}
+.dl-item:hover{background:var(--elevated)}
+.dl-item-icon{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dl-item-icon.queued{background:var(--text3)}
+.dl-item-icon.active{background:var(--accent);animation:blink 1s step-end infinite}
+.dl-item-icon.done{background:var(--green)}
+.dl-item-icon.error{background:var(--red)}
+.dl-item-icon.cancelled{background:var(--text3)}
+.dl-item-name{flex:1;font-family:var(--mono);font-size:10px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dl-item-prog-wrap{width:60px;height:2px;background:var(--elevated);border-radius:99px;overflow:hidden;flex-shrink:0}
+.dl-item-prog{height:100%;background:var(--accent);border-radius:99px;transition:width .2s}
+.dl-item-pct{font-family:var(--mono);font-size:10px;color:var(--text2);width:30px;text-align:right;flex-shrink:0}
+.dl-item-cancel{font-size:10px;color:var(--text3);background:none;border:none;padding:0 2px;line-height:1;flex-shrink:0}
+.dl-item-cancel:hover{color:var(--red)}
+
+/* DETAIL MODAL */
+#detail-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.85);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;padding:20px}
+#detail-overlay.open{opacity:1;pointer-events:all}
+#detail-panel{background:var(--surface);border:1px solid var(--border-hi);border-radius:12px;width:100%;max-width:920px;max-height:calc(100vh - 40px);display:flex;flex-direction:column;transform:scale(.97) translateY(8px);transition:transform .22s cubic-bezier(.34,1.56,.64,1);overflow:hidden;box-shadow:0 40px 80px rgba(0,0,0,.7)}
+#detail-overlay.open #detail-panel{transform:scale(1) translateY(0)}
+#detail-header{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);flex-shrink:0;gap:10px}
+#detail-filename{font-family:var(--mono);font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.detail-hdr-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.icon-btn{background:var(--elevated);border:1px solid var(--border);color:var(--text2);padding:5px 7px;border-radius:6px;transition:all .12s;line-height:0}
+.icon-btn:hover{color:var(--text);border-color:var(--border-hi)}
+.icon-btn.active{color:var(--accent);border-color:var(--accent-md);background:var(--accent-lo)}
+.icon-btn svg{width:13px;height:13px}
+#detail-body{display:grid;grid-template-columns:1fr 216px;overflow:hidden;flex:1;min-height:0}
+#detail-preview{background:#000;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;min-height:300px}
+#detail-preview img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+#detail-preview .no-preview{display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--text3);font-size:12px}
+#detail-preview .no-preview svg{width:36px;height:36px;opacity:.2}
+/* photo navigation */
+.detail-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);border:none;color:#fff;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s;z-index:2}
+.detail-nav:hover{background:rgba(0,0,0,.75)}
+.detail-nav.prev{left:10px}
+.detail-nav.next{right:10px}
+.detail-nav svg{width:14px;height:14px}
+/* video overlay controls */
+#video-overlay{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;gap:8px;padding:8px 12px;background:linear-gradient(transparent,rgba(0,0,0,.6));opacity:0;transition:opacity .2s}
+#detail-preview:hover #video-overlay{opacity:1}
+.video-ovl-btn{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.7);background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);padding:3px 7px;border-radius:4px;transition:all .12s;white-space:nowrap}
+.video-ovl-btn:hover{color:#fff;background:rgba(255,255,255,.2)}
+.video-ovl-btn.red{color:var(--red);border-color:rgba(248,113,113,.3)}
+/* clip controls */
+#clip-controls{position:absolute;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:10px 14px;display:none;flex-direction:column;gap:8px;z-index:5}
+#clip-controls.show{display:flex}
+.clip-row{display:flex;align-items:center;gap:8px}
+.clip-input{font-family:var(--mono);font-size:11px;background:var(--elevated);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;outline:none;width:70px}
+.clip-input:focus{border-color:var(--accent)}
+.clip-label{font-size:11px;color:var(--text2)}
+/* meta panel */
+#detail-meta{border-left:1px solid var(--border);padding:16px 14px;overflow-y:auto;display:flex;flex-direction:column;gap:18px}
+#detail-meta::-webkit-scrollbar{width:3px}
+#detail-meta::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:99px}
+.meta-group-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.meta-row{padding:5px 0;border-bottom:1px solid var(--border)}
+.meta-row:last-child{border:none}
+.meta-k{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:1px}
+.meta-v{font-family:var(--mono);font-size:11px;color:var(--text);word-break:break-all}
+#detail-actions{display:flex;flex-direction:column;gap:6px}
+.action-btn{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;font-weight:500;padding:9px;border-radius:7px;transition:all .15s}
+.action-btn svg{width:12px;height:12px}
+.action-btn.download{background:var(--accent);color:#000;border:none}
+.action-btn.download:hover{background:#e89b1a}
+.action-btn.download-lrv{background:rgba(251,191,36,.08);color:#c49820;border:1px solid rgba(251,191,36,.22)}
+.action-btn.download-lrv:hover{background:rgba(251,191,36,.15)}
+.action-btn.del{background:rgba(248,113,113,.08);color:var(--red);border:1px solid rgba(248,113,113,.2)}
+.action-btn.del:hover{background:rgba(248,113,113,.15)}
+
+/* SETTINGS / CHECKLIST / SHARE MODALS */
+.modal-overlay{position:fixed;inset:0;z-index:150;background:rgba(0,0,0,.8);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal-panel{background:var(--surface);border:1px solid var(--border-hi);border-radius:12px;width:100%;max-width:400px;overflow:hidden;box-shadow:0 32px 64px rgba(0,0,0,.6);transform:scale(.97) translateY(6px);transition:transform .2s}
+.modal-overlay.open .modal-panel{transform:scale(1) translateY(0)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)}
+.modal-title{font-size:13px;font-weight:500;color:var(--text)}
+.modal-body{padding:16px}
+.settings-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+.settings-row:last-child{border:none}
+.settings-k{font-size:12px;color:var(--text2)}
+.settings-v{font-family:var(--mono);font-size:12px;color:var(--text);font-weight:500}
+.settings-v.recording{color:var(--red)}
+.check-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:7px;margin-bottom:4px}
+.check-item.pass{background:rgba(52,211,153,.07)}
+.check-item.fail{background:rgba(248,113,113,.07)}
+.check-item.warn{background:rgba(245,166,35,.07)}
+.check-item .check-icon{font-size:13px;width:18px;text-align:center;flex-shrink:0}
+.check-item.pass .check-icon{color:var(--green)}
+.check-item.fail .check-icon{color:var(--red)}
+.check-item.warn .check-icon{color:var(--accent)}
+.check-label{flex:1;font-size:12px;color:var(--text)}
+.check-detail{font-family:var(--mono);font-size:11px;color:var(--text2)}
+.share-url-box{background:var(--elevated);border:1px solid var(--border);border-radius:7px;padding:12px 14px;font-family:var(--mono);font-size:13px;color:var(--text);text-align:center;margin-bottom:12px;word-break:break-all}
+.share-instructions{font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:14px}
+.modal-btn{width:100%;padding:10px;border-radius:7px;font-size:12px;font-weight:500;border:none;cursor:pointer;transition:all .15s}
+.modal-btn.primary{background:var(--accent);color:#000}
+.modal-btn.primary:hover{background:#e89b1a}
+.modal-btn.secondary{background:var(--elevated);color:var(--text);border:1px solid var(--border)}
+.modal-btn.secondary:hover{border-color:var(--border-hi)}
+
+/* SKELETON */
+.skeleton{background:linear-gradient(90deg,var(--elevated) 25%,rgba(255,255,255,.04) 50%,var(--elevated) 75%);background-size:300%;animation:shimmer 1.6s infinite}
+@keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+
+/* TOAST */
+#toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--elevated);border:1px solid var(--border-hi);font-size:12px;color:var(--text);padding:8px 16px;border-radius:8px;opacity:0;transition:all .2s;pointer-events:none;z-index:999;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.green{color:var(--green);border-color:rgba(52,211,153,.25)}
+#toast.red{color:var(--red);border-color:rgba(248,113,113,.25)}
+
+/* SPLASH */
+#splash{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:0}
+#splash.hidden{display:none}
+.splash-inner{width:100%;max-width:520px;padding:0 24px}
+.splash-logo{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.18em;color:var(--text3);margin-bottom:48px}
+.splash-logo span{color:var(--accent)}
+.splash-title{font-size:22px;font-weight:600;letter-spacing:-.02em;color:var(--text);margin-bottom:8px}
+.splash-sub{font-size:13px;color:var(--text2);margin-bottom:40px;line-height:1.6}
+.splash-steps{display:flex;flex-direction:column;gap:16px;margin-bottom:40px}
+.splash-step{display:flex;align-items:flex-start;gap:14px}
+.splash-step-num{width:22px;height:22px;border-radius:50%;background:var(--elevated);border:1px solid var(--border-hi);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:var(--accent);flex-shrink:0;margin-top:1px}
+.splash-step-body{flex:1}
+.splash-step-label{font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px}
+.splash-step-desc{font-size:12px;color:var(--text2);line-height:1.5}
+.splash-code{background:var(--elevated);border:1px solid var(--border);border-radius:6px;padding:10px 14px;font-family:var(--mono);font-size:12px;color:var(--text);margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;transition:border-color .15s}
+.splash-code:hover{border-color:var(--border-hi)}
+.splash-code-copy{font-size:10px;color:var(--text3);flex-shrink:0}
+.splash-actions{display:flex;gap:10px;align-items:center}
+.splash-btn{display:flex;align-items:center;gap:6px;padding:9px 18px;border-radius:7px;font-size:13px;font-weight:500;border:none;cursor:pointer;transition:all .15s}
+.splash-btn.primary{background:var(--accent);color:#000}
+.splash-btn.primary:hover{background:#e89b1a}
+.splash-btn.secondary{background:var(--elevated);color:var(--text2);border:1px solid var(--border)}
+.splash-btn.secondary:hover{color:var(--text);border-color:var(--border-hi)}
+.splash-checking{font-size:12px;color:var(--text3);display:flex;align-items:center;gap:6px}
+.splash-dot-spin{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--text3);border-top-color:var(--accent);animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- SPLASH / SETUP SCREEN -->
+<div id="splash">
+  <div class="splash-inner">
+    <div class="splash-logo">GO<span>PRO</span> BROWSER</div>
+    <div class="splash-title">Connect your GoPro in seconds.</div>
+    <div class="splash-sub">This app runs entirely in your browser — a small local proxy bridges your GoPro's USB connection. One-time setup, takes under 30 seconds.</div>
+    <div class="splash-steps">
+      <div class="splash-step">
+        <div class="splash-step-num">1</div>
+        <div class="splash-step-body">
+          <div class="splash-step-label">Download the proxy script</div>
+          <div class="splash-step-desc">A single Python file — no installs, no dependencies.</div>
+          <div class="splash-code" onclick="downloadProxy()"><span>gopro-proxy.py</span><span class="splash-code-copy">download ↓</span></div>
+        </div>
+      </div>
+      <div class="splash-step">
+        <div class="splash-step-num">2</div>
+        <div class="splash-step-body">
+          <div class="splash-step-label">Run it in your terminal</div>
+          <div class="splash-step-desc">Requires Python 3 (pre-installed on Mac). Windows/Linux also work.</div>
+          <div class="splash-code" onclick="copyCmd(this)"><span>python3 gopro-proxy.py</span><span class="splash-code-copy">copy</span></div>
+        </div>
+      </div>
+      <div class="splash-step">
+        <div class="splash-step-num">3</div>
+        <div class="splash-step-body">
+          <div class="splash-step-label">Plug in your GoPro via USB-C and press power</div>
+          <div class="splash-step-desc">Works with GoPro Hero 10 and later. The camera's HTTP API activates automatically when powered on with USB connected.</div>
+        </div>
+      </div>
+    </div>
+    <div class="splash-actions">
+      <button class="splash-btn primary" onclick="checkProxy()">
+        <div class="splash-dot-spin" id="splash-spin" style="display:none"></div>
+        I've started the proxy →
+      </button>
+      <button class="splash-btn secondary" onclick="downloadProxy()">Download proxy script</button>
+    </div>
+    <div id="splash-error" style="margin-top:14px;font-size:12px;color:var(--red);display:none">
+      Proxy not detected at localhost:8765. Make sure the terminal shows "Serving on → http://localhost:8765" then try again.
+    </div>
+  </div>
+</div>
+
+<div id="app">
+
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div id="logo"><div class="dot" id="logo-dot"></div>GOPRO</div>
+    <div class="tb-sep"></div>
+    <div id="conn-status">
+      <div class="indicator"></div>
+      <span id="conn-label">Not connected</span>
+    </div>
+    <!-- live status -->
+    <div id="live-status">
+      <div class="tb-sep"></div>
+      <div class="live-chip" id="live-rec-chip">
+        <div class="rec-dot" id="rec-dot"></div>
+        <span id="live-rec-label">IDLE</span>
+      </div>
+      <div class="live-sep"></div>
+      <div class="live-chip"><span id="live-batt">—</span></div>
+      <div class="live-sep"></div>
+      <div class="live-chip"><span id="live-time">—</span></div>
+    </div>
+    <div class="tb-spacer"></div>
+    <button class="tb-btn" id="btn-shutter" onclick="toggleShutter()" disabled style="display:none">
+      <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
+      <span id="shutter-label">Record</span>
+    </button>
+    <button class="tb-btn" id="btn-last" onclick="openLastCaptured()" disabled title="Last captured">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Latest
+    </button>
+    <button class="tb-btn" id="btn-refresh" onclick="loadMedia()" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+      Refresh
+    </button>
+    <button class="tb-btn" onclick="openSettings()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Settings
+    </button>
+    <button class="tb-btn" onclick="openShare()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      Share
+    </button>
+    <div class="tb-sep"></div>
+    <button class="tb-btn primary" id="btn-connect" onclick="connectCamera()">Connect</button>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+      <div class="sb-section">
+        <div class="sb-label">Camera</div>
+        <div class="sb-row"><span class="k">Model</span><span class="v" id="s-model">—</span></div>
+        <div class="sb-row"><span class="k">Firmware</span><span class="v" id="s-fw">—</span></div>
+        <div class="sb-row"><span class="k">Battery</span><span class="v" id="s-batt">—</span></div>
+        <div class="sb-row"><span class="k">SD Card</span><span class="v" id="s-sd">—</span></div>
+      </div>
+      <div class="sb-div"></div>
+      <div id="storage-wrap">
+        <div class="sb-label">Storage</div>
+        <div id="storage-bar"><div id="sb-vid-bar" style="width:0%"></div><div id="sb-pic-bar" style="width:0%"></div><div id="sb-lrv-bar" style="width:0%"></div></div>
+        <div id="storage-legend">
+          <div class="storage-row"><span><span class="storage-dot" style="background:var(--blue)"></span>Video</span><span id="stor-vid">—</span></div>
+          <div class="storage-row"><span><span class="storage-dot" style="background:var(--green)"></span>Photo</span><span id="stor-pic">—</span></div>
+          <div class="storage-row"><span><span class="storage-dot" style="background:var(--accent)"></span>Proxy</span><span id="stor-lrv">—</span></div>
+        </div>
+      </div>
+      <div class="sb-div"></div>
+      <div class="sb-section" style="padding-bottom:6px">
+        <div class="sb-label">Media</div>
+        <div class="sb-row"><span class="k">Videos</span><span class="v" id="s-vids">0</span></div>
+        <div class="sb-row"><span class="k">Photos</span><span class="v" id="s-pics">0</span></div>
+        <div class="sb-row"><span class="k">Proxies</span><span class="v" id="s-lrv">0</span></div>
+        <div class="sb-row"><span class="k">Total</span><span class="v" id="s-total">0</span></div>
+      </div>
+      <div class="sb-div"></div>
+      <div id="filter-bar">
+        <div class="sb-label" style="padding:0 6px 6px">Filter</div>
+        <button class="filter-btn active" data-filter="all" onclick="setFilter('all',this)">All Files <span class="count" id="fc-all">0</span></button>
+        <button class="filter-btn" data-filter="mp4" onclick="setFilter('mp4',this)">Videos <span class="count" id="fc-mp4">0</span></button>
+        <button class="filter-btn" data-filter="jpg" onclick="setFilter('jpg',this)">Photos <span class="count" id="fc-jpg">0</span></button>
+        <button class="filter-btn" data-filter="lrv" onclick="setFilter('lrv',this)">Proxies <span class="count" id="fc-lrv">0</span></button>
+      </div>
+      <div class="sb-div"></div>
+      <div id="sb-bottom">
+        <div>172.27.123.51:8080</div>
+        <div>OpenGoPro v2.0</div>
+        <div style="margin-top:4px"><a href="#" onclick="openChecklist();return false">↗ Pre-ride checklist</a></div>
+        <div><a href="#" onclick="exportManifest();return false">↗ Export manifest</a></div>
+      </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div id="content">
+      <!-- SELECTION BAR -->
+      <div id="sel-bar">
+        <span class="sel-count" id="sel-count-label">0 selected</span>
+        <div id="prefix-wrap"><label>Prefix:</label><input type="text" id="dl-prefix" placeholder="e.g. Ride_"></div>
+        <button class="sel-btn dl" onclick="downloadSelected()">↓ Download</button>
+        <button class="sel-btn del" onclick="deleteSelected()">🗑 Delete</button>
+        <button class="sel-btn clr" onclick="clearSelection()">✕ Clear</button>
+      </div>
+
+      <!-- TOOLBAR -->
+      <div id="toolbar">
+        <button id="back-btn" onclick="closeSession()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Back
+        </button>
+        <span id="breadcrumb"></span>
+        <div id="search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="search" placeholder="Search…" oninput="filterSearch(this.value)">
+        </div>
+        <button class="sort-btn active" id="sort-date" onclick="setSort('date',this)">Date ↓</button>
+        <button class="sort-btn" id="sort-name" onclick="setSort('name',this)">Name</button>
+        <button class="sort-btn" id="sort-size" onclick="setSort('size',this)">Size</button>
+        <div id="view-toggle">
+          <button class="view-btn active" id="vbtn-grid" title="Grid" onclick="setView('grid',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          </button>
+          <button class="view-btn" id="vbtn-list" title="List" onclick="setView('list',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          </button>
+          <button class="view-btn" id="vbtn-grouped" title="Grouped" onclick="setView('grouped',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="5"/><rect x="14" y="3" width="7" height="5"/><rect x="3" y="11" width="18" height="2"/><rect x="3" y="16" width="18" height="2"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- MEDIA AREA -->
+      <div id="media-wrap">
+        <div id="empty-state">
+          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+          <div class="empty-title" id="empty-title">Not connected</div>
+          <div class="empty-sub" id="empty-sub">Plug in your GoPro Hero 10 via USB-C, press the power button, then click <strong>Connect</strong>.</div>
+          <div class="code-block" id="setup-hint">
+            <div class="comment"># Make sure the proxy is running:</div>
+            <div><span class="cmd">python3 gopro-proxy.py</span></div>
+            <div class="comment"># Then open localhost:8765</div>
+          </div>
+        </div>
+        <div id="media-grid" class="hidden"></div>
+      </div>
+
+      <!-- STATUS BAR -->
+      <div id="statusbar">
+        <span id="sb-count">0 files</span>
+        <span class="sep"></span>
+        <span id="sb-filter">Showing all</span>
+        <span class="sep"></span>
+        <span id="sb-sort">by date</span>
+        <span class="sep"></span>
+        <span id="sb-viewed" style="color:var(--text3)">0 viewed</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DOWNLOAD TRAY -->
+<div id="dl-tray">
+  <div id="dl-tray-header" onclick="toggleTray()">
+    <div><div id="dl-tray-title">Downloads</div><div id="dl-tray-sub"></div></div>
+    <div class="tray-hdr-right">
+      <button class="tray-btn" onclick="event.stopPropagation();clearDoneDL()">Clear done</button>
+      <button class="tray-btn" onclick="event.stopPropagation();toggleTray()">✕</button>
+    </div>
+  </div>
+  <div id="dl-tray-list"></div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div id="detail-overlay" onclick="closeDetail(event)">
+  <div id="detail-panel">
+    <div id="detail-header">
+      <span id="detail-filename">—</span>
+      <div class="detail-hdr-right">
+        <button class="icon-btn" id="btn-lrv-toggle" onclick="toggleLRV()" title="Play proxy (LRV)" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-clip-toggle" onclick="toggleClip()" title="Clip trimmer" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-hilight" onclick="addHilight()" title="Add HiLight tag" style="display:none">⚑</button>
+        <button class="icon-btn" onclick="closeDetailBtn()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="detail-body">
+      <div id="detail-preview">
+        <button class="detail-nav prev" id="detail-prev" onclick="navigateDetail(-1)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="detail-nav next" id="detail-next" onclick="navigateDetail(1)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <div id="video-overlay">
+          <button class="video-ovl-btn" onclick="setClipPoint('start')">↦ Set In</button>
+          <button class="video-ovl-btn" onclick="setClipPoint('end')">Set Out ↤</button>
+          <button class="video-ovl-btn" onclick="document.querySelector('#detail-preview video')?.requestFullscreen()">⛶ Full</button>
+        </div>
+        <div id="clip-controls">
+          <div class="clip-row">
+            <span class="clip-label">In</span>
+            <input type="number" class="clip-input" id="clip-start" placeholder="0" min="0" step="0.1">
+            <span class="clip-label">Out</span>
+            <input type="number" class="clip-input" id="clip-end" placeholder="end" min="0" step="0.1">
+            <button class="video-ovl-btn" onclick="exportClip()" id="btn-export-clip">Export Clip</button>
+          </div>
+        </div>
+      </div>
+      <div id="detail-meta">
+        <div class="meta-group">
+          <div class="meta-group-title">File Info</div>
+          <div class="meta-row"><div class="meta-k">Name</div><div class="meta-v" id="dm-name">—</div></div>
+          <div class="meta-row"><div class="meta-k">Type</div><div class="meta-v" id="dm-type">—</div></div>
+          <div class="meta-row"><div class="meta-k">Size</div><div class="meta-v" id="dm-size">—</div></div>
+          <div class="meta-row"><div class="meta-k">Created</div><div class="meta-v" id="dm-created">—</div></div>
+          <div class="meta-row"><div class="meta-k">Modified</div><div class="meta-v" id="dm-modified">—</div></div>
+          <div class="meta-row"><div class="meta-k">Directory</div><div class="meta-v" id="dm-dir">—</div></div>
+        </div>
+        <div id="detail-actions">
+          <div class="meta-group-title">Actions</div>
+          <button class="action-btn download" onclick="downloadCurrent()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download
+          </button>
+          <button class="action-btn download-lrv" id="btn-dl-lrv" style="display:none" onclick="downloadLRVCurrent()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Proxy (.LRV)
+          </button>
+          <button class="action-btn del" onclick="deleteCurrent()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+            Delete File
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="settings-overlay" class="modal-overlay" onclick="closeModal('settings-overlay',event)">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <span class="modal-title">Camera Settings</span>
+      <button class="icon-btn" onclick="closeModal('settings-overlay')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="settings-rows">
+      <div style="text-align:center;padding:20px;font-size:12px;color:var(--text2)">Connect camera to view settings</div>
+    </div>
+  </div>
+</div>
+
+<!-- CHECKLIST MODAL -->
+<div id="checklist-overlay" class="modal-overlay" onclick="closeModal('checklist-overlay',event)">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <span class="modal-title">Pre-ride Checklist</span>
+      <button class="icon-btn" onclick="closeModal('checklist-overlay')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="checklist-items">
+      <div style="text-align:center;padding:20px;font-size:12px;color:var(--text2)">Connect camera to run checklist</div>
+    </div>
+  </div>
+</div>
+
+<!-- SHARE MODAL -->
+<div id="share-overlay" class="modal-overlay" onclick="closeModal('share-overlay',event)">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <span class="modal-title">Share on Local Network</span>
+      <button class="icon-btn" onclick="closeModal('share-overlay')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="share-instructions">Open this URL on any device connected to the same Wi-Fi network to browse the GoPro from your phone or another computer.</div>
+      <div class="share-url-box" id="share-url">Loading…</div>
+      <button class="modal-btn primary" onclick="copyShareUrl()">Copy URL</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────────────
+const PROXY_ORIGIN = 'http://localhost:8765';
+const BASE_URL = PROXY_ORIGIN + '/proxy';
+
+// ── LOOKUP TABLES ────────────────────────────────────────────────────
+const RES_NAMES = {1:'4K',4:'2.7K 4:3',5:'2.7K',6:'1440p',9:'1080p',12:'720p',18:'4K 4:3',27:'5K'};
+const FPS_NAMES = {0:'240fps',1:'120fps',2:'100fps',5:'60fps',6:'50fps',8:'30fps',9:'25fps',10:'24fps',13:'200fps'};
+const HS_NAMES  = {0:'Off',1:'Low',2:'High',3:'Boost',4:'AutoBoost',5:'Standard'};
+const MODE_NAMES = {0:'Video',1:'Photo',2:'Multi-Shot',5:'Setup'};
+
+// ── STATE ────────────────────────────────────────────────────────────
+const state = {
+  connected: false,
+  allFiles: [], filtered: [], sessions: {},
+  selected: new Set(),
+  currentFile: null, currentDetailIdx: -1,
+  activeSessionId: null, prevView: 'grid',
+  filter: 'all', sort: 'date', sortDir: -1,
+  view: 'grid', searchQ: '',
+  recording: false, battery: null, remainingMinutes: null,
+  cameraMode: null, cameraSettings: {},
+  dlQueue: [], dlActive: false,
+  viewed: new Set(), downloaded: new Set(),
+  keepAliveTimer: null, pollTimer: null,
+  serverInfo: null, useLRV: false, showClip: false,
+};
+
+// ── SERVER INFO ──────────────────────────────────────────────────────
+async function fetchServerInfo() {
+  try { state.serverInfo = await fetch(`${PROXY_ORIGIN}/info`).then(r => r.json()); } catch(_) {}
+}
+fetchServerInfo();
+
+// ── SESSION NAMING (localStorage) ───────────────────────────────────
+const LS_KEY = 'gopro_session_names';
+function loadGroupName(sessionId, dateKey) {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}')[`${sessionId}_${dateKey}`] || null; } catch { return null; }
+}
+function saveGroupName(sessionId, dateKey, name) {
+  try {
+    const store = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+    if (name) store[`${sessionId}_${dateKey}`] = name;
+    else delete store[`${sessionId}_${dateKey}`];
+    localStorage.setItem(LS_KEY, JSON.stringify(store));
+  } catch {}
+}
+
+// ── CONNECT + KEEP-ALIVE + POLLING ──────────────────────────────────
+async function connectCamera() {
+  setConnStatus('connecting', 'Connecting…');
+  document.getElementById('btn-connect').disabled = true;
+
+  try {
+    let info = null;
+    try { info = await gopro('/gopro/camera/info'); } catch(_) {}
+    if (!info) info = await gopro('/gp/gpControl/info');
+
+    state.connected = true;
+    setConnStatus('connected', 'Connected');
+    document.getElementById('logo-dot').classList.add('live');
+    document.getElementById('btn-refresh').disabled = false;
+    document.getElementById('btn-last').disabled = false;
+    document.getElementById('btn-shutter').disabled = false;
+    document.getElementById('btn-shutter').style.display = 'flex';
+
+    if (info?.info) {
+      setText('s-model', info.info.model_name || 'HERO10 Black');
+      setText('s-fw', info.info.firmware_version || '—');
+    } else {
+      setText('s-model', 'HERO10 Black');
+    }
+
+    document.getElementById('live-status').classList.add('show');
+    document.getElementById('empty-state').classList.add('hidden');
+
+    // Keep-alive every 2.5s
+    state.keepAliveTimer = setInterval(() => {
+      fetch(`${BASE_URL}/gopro/camera/keep_alive`).catch(() => {});
+    }, 2500);
+
+    // Live poll every 4s
+    state.pollTimer = setInterval(pollCameraState, 4000);
+    pollCameraState();
+
+    showToast('Camera connected', 'green');
+    await loadMedia();
+
+  } catch(err) {
+    setConnStatus('error', 'Connection failed');
+    document.getElementById('btn-connect').disabled = false;
+    showCORSHelp();
+  }
+}
+
+async function pollCameraState() {
+  if (!state.connected) return;
+  try {
+    const st = await gopro('/gopro/camera/state');
+    if (!st) return;
+    const s = st.status || {};
+    const settings = st.settings || {};
+
+    state.recording = !!s['8'];
+    state.battery = s['70'] ?? s['2'] ?? null;
+    state.remainingMinutes = s['54'] ?? null;
+    state.cameraMode = s['43'] ?? null;
+    state.cameraSettings = settings;
+
+    // Topbar live chips
+    const recDot = document.getElementById('rec-dot');
+    const recLabel = document.getElementById('live-rec-label');
+    const recChip = document.getElementById('live-rec-chip');
+    if (state.recording) {
+      recDot.classList.add('active');
+      recLabel.textContent = 'REC';
+      recChip.classList.add('rec-active');
+      document.getElementById('btn-shutter').className = 'tb-btn recording';
+      document.getElementById('shutter-label').textContent = 'Stop';
+    } else {
+      recDot.classList.remove('active');
+      recLabel.textContent = 'IDLE';
+      recChip.classList.remove('rec-active');
+      document.getElementById('btn-shutter').className = 'tb-btn';
+      document.getElementById('btn-shutter').style.cssText = 'display:flex;color:var(--red);border:1px solid rgba(248,113,113,.25)';
+      document.getElementById('shutter-label').textContent = 'Record';
+    }
+
+    if (state.battery !== null) {
+      document.getElementById('live-batt').textContent = state.battery + '%';
+      setText('s-batt', state.battery + '%');
+    }
+    if (state.remainingMinutes !== null) {
+      const h = Math.floor(state.remainingMinutes / 60);
+      const m = state.remainingMinutes % 60;
+      const label = h > 0 ? `${h}h ${m}m` : `${m}min`;
+      document.getElementById('live-time').textContent = label;
+      setText('s-sd', label + ' left');
+    }
+  } catch(_) {}
+}
+
+// ── SHUTTER ──────────────────────────────────────────────────────────
+async function toggleShutter() {
+  const endpoint = state.recording ? '/gopro/camera/shutter/stop' : '/gopro/camera/shutter/start';
+  try {
+    await fetch(`${BASE_URL}${endpoint}`);
+    setTimeout(pollCameraState, 500);
+  } catch(_) { showToast('Shutter command failed', 'red'); }
+}
+
+// ── LOAD MEDIA ───────────────────────────────────────────────────────
+async function loadMedia() {
+  document.getElementById('btn-refresh').disabled = true;
+  showSkeletons();
+  try {
+    const data = await gopro('/gopro/media/list');
+    const allFiles = [];
+    if (data?.media) {
+      for (const folder of data.media) {
+        for (const file of folder.fs || []) {
+          allFiles.push({
+            name: file.n, dir: folder.d,
+            created: parseInt(file.cre) * 1000,
+            modified: parseInt(file.mod) * 1000,
+            size: parseInt(file.s) || 0,
+            lrv: file.glrv ? parseInt(file.glrv) : 0,
+            raw: file,
+          });
+        }
+      }
+    }
+    state.allFiles = allFiles;
+    state.sessions = buildSessions(allFiles);
+    updateCounts();
+    applyFilters();
+    updateSidebarStats();
+    updateStorageViz();
+  } catch(_) { showToast('Failed to load media', 'red'); }
+  document.getElementById('btn-refresh').disabled = false;
+}
+
+// ── LAST CAPTURED ────────────────────────────────────────────────────
+async function openLastCaptured() {
+  try {
+    const data = await gopro('/gopro/media/last_captured');
+    if (data?.file) {
+      const name = data.file;
+      const f = state.allFiles.find(f => f.name === name);
+      if (f) { openDetail(f); return; }
+    }
+    // fallback: most recent by date
+    const latest = [...state.allFiles].sort((a,b) => b.created - a.created)[0];
+    if (latest) openDetail(latest);
+  } catch(_) {
+    const latest = [...state.allFiles].sort((a,b) => b.created - a.created)[0];
+    if (latest) openDetail(latest);
+    else showToast('No files found', 'red');
+  }
+}
+
+// ── SESSION GROUPING ─────────────────────────────────────────────────
+function parseFilename(name) {
+  let m = name.match(/^GX(\d{2})(\d{4})\.(MP4|LRV)$/i);
+  if (m) return { chapter: parseInt(m[1]), session: m[2], ext: m[3].toLowerCase() };
+  m = name.match(/^GOPR(\d{4})\.(JPG|JPEG|MP4)$/i);
+  if (m) return { chapter: 0, session: m[1], ext: m[2].toLowerCase() };
+  m = name.match(/^GP(\d{2})(\d{4})\.(JPG|JPEG)$/i);
+  if (m) return { chapter: parseInt(m[1]), session: m[2], ext: m[3].toLowerCase() };
+  return null;
+}
+
+function buildSessions(files) {
+  const sessions = {};
+  for (const file of files) {
+    const parsed = parseFilename(file.name);
+    const key = parsed ? parsed.session : ('misc_' + file.name);
+    const dateKey = new Date(file.created).toISOString().slice(0,10);
+    if (!sessions[key]) {
+      sessions[key] = {
+        id: key, files: [], totalSize: 0,
+        created: file.created, dateKey,
+        name: loadGroupName(key, dateKey),
+        isGroup: !!parsed,
+      };
+    }
+    sessions[key].files.push(file);
+    sessions[key].totalSize += file.size;
+    if (file.created < sessions[key].created) {
+      sessions[key].created = file.created;
+      sessions[key].dateKey = new Date(file.created).toISOString().slice(0,10);
+    }
+  }
+  // sort chapters within each session
+  for (const s of Object.values(sessions)) {
+    s.files.sort((a, b) => {
+      const pa = parseFilename(a.name), pb = parseFilename(b.name);
+      return (pa?.chapter || 0) - (pb?.chapter || 0);
+    });
+  }
+  return sessions;
+}
+
+// ── SESSION NAME EDITING ─────────────────────────────────────────────
+function startEditName(sessionId, el, e) {
+  e.stopPropagation();
+  const session = state.sessions[sessionId];
+  if (!session) return;
+  const current = session.name || '';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = current;
+  input.className = 'session-name-input';
+  input.placeholder = `Session ${sessionId}`;
+  input.onclick = ev => ev.stopPropagation();
+
+  const save = () => {
+    const newName = input.value.trim() || null;
+    session.name = newName;
+    saveGroupName(sessionId, session.dateKey, newName);
+    el.textContent = newName || `Session ${sessionId}`;
+    el.style.display = '';
+    input.remove();
+  };
+
+  input.onblur = save;
+  input.onkeydown = ev => {
+    if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
+    if (ev.key === 'Escape') { input.value = current; input.blur(); }
+    ev.stopPropagation();
+  };
+
+  el.style.display = 'none';
+  el.parentNode.insertBefore(input, el.nextSibling);
+  input.focus();
+  input.select();
+}
+
+// ── FILTERS / SORT ───────────────────────────────────────────────────
+function setFilter(f, btn) {
+  state.filter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
+}
+function filterSearch(q) { state.searchQ = q.toLowerCase(); applyFilters(); }
+function setSort(s, btn) {
+  if (state.sort === s) state.sortDir *= -1; else { state.sort = s; state.sortDir = -1; }
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  btn.textContent = s.charAt(0).toUpperCase() + s.slice(1) + (state.sortDir === -1 ? ' ↓' : ' ↑');
+  applyFilters();
+}
+
+function applyFilters() {
+  if (state.view === 'grouped' || state.view === 'session') { renderGrid(); updateStatusBar(); return; }
+  let files = [...state.allFiles];
+  if (state.filter !== 'all') files = files.filter(f => f.name.toLowerCase().endsWith('.' + state.filter));
+  if (state.searchQ) files = files.filter(f => f.name.toLowerCase().includes(state.searchQ));
+  files.sort((a, b) => {
+    if (state.sort === 'date') return (a.created - b.created) * state.sortDir;
+    if (state.sort === 'name') return a.name.localeCompare(b.name) * state.sortDir;
+    if (state.sort === 'size') return (a.size - b.size) * state.sortDir;
+    return 0;
+  });
+  state.filtered = files;
+  renderGrid();
+  updateStatusBar();
+}
+
+// ── RENDER ───────────────────────────────────────────────────────────
+function setView(v, btn) {
+  if (state.view === 'session') closeSession(false);
+  state.view = v;
+  document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+  btn?.classList.add('active');
+  document.getElementById('back-btn').classList.remove('show');
+  document.getElementById('breadcrumb').textContent = '';
+  applyFilters();
+}
+
+function renderGrid() {
+  const grid = document.getElementById('media-grid');
+  grid.classList.remove('hidden');
+  document.getElementById('empty-state').classList.add('hidden');
+
+  if (state.view === 'grouped') {
+    renderGrouped(grid);
+  } else if (state.view === 'session') {
+    renderSession(grid);
+  } else {
+    const isList = state.view === 'list';
+    grid.className = 'media-grid' + (isList ? ' list-view' : '');
+    grid.innerHTML = '';
+    if (state.filtered.length === 0 && state.connected) {
+      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;font-size:12px;color:var(--text3)">No files match.</div>`;
+      return;
+    }
+    state.filtered.forEach((f, i) => grid.appendChild(buildFileCard(f, i)));
+  }
+}
+
+function renderGrouped(grid) {
+  grid.className = 'media-grid grouped-view';
+  grid.innerHTML = '';
+
+  // Group sessions by date
+  const byDate = {};
+  for (const s of Object.values(state.sessions)) {
+    if (!byDate[s.dateKey]) byDate[s.dateKey] = [];
+    byDate[s.dateKey].push(s);
+  }
+  const sortedDates = Object.keys(byDate).sort((a,b) => b.localeCompare(a));
+
+  if (sortedDates.length === 0) {
+    grid.innerHTML = `<div style="text-align:center;padding:60px;font-size:12px;color:var(--text3)">No files found.</div>`;
+    return;
+  }
+
+  sortedDates.forEach((dateKey, di) => {
+    const sessions = byDate[dateKey].sort((a,b) => b.created - a.created);
+    const totalFiles = sessions.reduce((n, s) => n + s.files.length, 0);
+    const totalSize  = sessions.reduce((n, s) => n + s.totalSize, 0);
+
+    const group = document.createElement('div');
+    group.className = 'date-group';
+    group.style.animationDelay = (di * 0.04) + 's';
+
+    const dateLabel = new Date(dateKey + 'T12:00:00').toLocaleDateString('en-IN', {day:'2-digit',month:'long',year:'numeric'});
+    group.innerHTML = `
+      <div class="date-header">
+        <span class="date-label">${dateLabel}</span>
+        <div class="date-line"></div>
+        <span class="date-meta-label">${sessions.length} session${sessions.length>1?'s':''} · ${formatSize(totalSize)}</span>
+      </div>
+      <div class="session-grid" id="sg-${dateKey.replace(/-/g,'_')}"></div>
+    `;
+    grid.appendChild(group);
+
+    const sg = group.querySelector('.session-grid');
+    sessions.forEach((sess, si) => {
+      sg.appendChild(buildSessionCard(sess, di * 10 + si));
+    });
+  });
+}
+
+function renderSession(grid) {
+  const sess = state.sessions[state.activeSessionId];
+  if (!sess) { closeSession(); return; }
+
+  grid.className = 'media-grid';
+  grid.innerHTML = '';
+
+  // breadcrumb
+  document.getElementById('breadcrumb').textContent = sess.name || `Session ${state.activeSessionId}`;
+
+  sess.files.forEach((f, i) => grid.appendChild(buildFileCard(f, i)));
+}
+
+function openSession(sessionId) {
+  state.activeSessionId = sessionId;
+  state.prevView = state.view;
+  state.view = 'session';
+  document.getElementById('back-btn').classList.add('show');
+  renderGrid();
+}
+
+function closeSession(rerender = true) {
+  state.view = state.prevView || 'grouped';
+  state.activeSessionId = null;
+  document.getElementById('back-btn').classList.remove('show');
+  document.getElementById('breadcrumb').textContent = '';
+  if (rerender) {
+    // sync active view button
+    const btnId = {grid:'vbtn-grid',list:'vbtn-list',grouped:'vbtn-grouped'}[state.view];
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(btnId)?.classList.add('active');
+    applyFilters();
+  }
+}
+
+// ── CARD BUILDERS ────────────────────────────────────────────────────
+function buildFileCard(file, idx) {
+  const card = document.createElement('div');
+  card.className = 'media-card' + (state.selected.has(file.name) ? ' selected' : '');
+  card.style.animationDelay = Math.min(idx * 0.018, 0.28) + 's';
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  const isVideo = ext === 'mp4', isPhoto = ext === 'jpg' || ext === 'jpeg';
+  const thumbUrl = `${BASE_URL}/gopro/media/thumbnail?path=${file.dir}/${file.name}`;
+
+  if (state.view === 'list') {
+    card.innerHTML = `
+      <div class="card-inner">
+        <div class="card-thumb">${isPhoto||isVideo ? `<img src="${thumbUrl}" onerror="thumbError(this)" loading="lazy">` : `<div class="no-thumb">${svgFile()}</div>`}</div>
+        <div class="card-info">
+          <div class="card-name">${file.name}</div>
+          <div class="card-meta"><span>${formatSize(file.size)}</span><span>${formatDate(file.created)}</span></div>
+        </div>
+        <span class="card-type-badge ${ext}">${ext.toUpperCase()}</span>
+        <div class="card-actions">
+          <button class="inline-btn dl" onclick="event.stopPropagation();queueDownload(${JSON.stringify(file).replace(/"/g,'&quot;')})">↓</button>
+          <button class="inline-btn del" onclick="event.stopPropagation();deleteFile('${file.dir}','${file.name}')">🗑</button>
+        </div>
+      </div>`;
+  } else {
+    card.innerHTML = `
+      <div class="card-thumb">${isPhoto||isVideo ? `<img src="${thumbUrl}" onerror="thumbError(this)" loading="lazy">` : `<div class="no-thumb">${svgFile()}</div>`}<span class="card-type-badge ${ext}">${ext.toUpperCase()}</span></div>
+      <div class="card-info">
+        <div class="card-name">${file.name}</div>
+        <div class="card-meta"><span>${formatSize(file.size)}</span><span>${formatDate(file.created)}</span></div>
+      </div>`;
+  }
+
+  card.addEventListener('click', e => {
+    if (e.shiftKey || e.metaKey || e.ctrlKey) toggleSelect(file, card);
+    else openDetail(file);
+  });
+  return card;
+}
+
+function buildSessionCard(sess, idx) {
+  const card = document.createElement('div');
+  card.className = 'session-card';
+  card.style.animationDelay = Math.min(idx * 0.018, 0.3) + 's';
+
+  const first = sess.files[0];
+  const ext = first?.name.split('.').pop().toLowerCase() || 'mp4';
+  const thumbUrl = first ? `${BASE_URL}/gopro/media/thumbnail?path=${first.dir}/${first.name}` : '';
+  const displayName = sess.name || `Session ${sess.id}`;
+  const chapters = sess.files.length;
+  const isMulti = chapters > 1;
+
+  card.innerHTML = `
+    <div class="session-card-inner">
+      <div class="card-thumb">
+        ${thumbUrl ? `<img class="session-thumb" src="${thumbUrl}" onerror="thumbError(this)" loading="lazy">` : `<div class="session-no-thumb">${svgFile()}</div>`}
+        ${isMulti ? `<span class="chapter-badge">${chapters} chapters</span>` : ''}
+        <span class="card-type-badge ${ext}">${ext.toUpperCase()}</span>
+      </div>
+      <div class="session-info">
+        <div class="session-name-text" title="Click to rename">${displayName}</div>
+        <div class="session-meta"><span>${formatSize(sess.totalSize)}</span><span>${formatDate(sess.created)}</span></div>
+      </div>
+    </div>`;
+
+  // name editing
+  const nameEl = card.querySelector('.session-name-text');
+  nameEl.addEventListener('click', e => { e.stopPropagation(); startEditName(sess.id, nameEl, e); });
+
+  card.addEventListener('click', () => openSession(sess.id));
+  return card;
+}
+
+// ── DETAIL MODAL ─────────────────────────────────────────────────────
+function openDetail(file) {
+  state.currentFile = file;
+  state.currentDetailIdx = state.filtered.indexOf(file);
+  state.viewed.add(file.name);
+  updateStatusBar();
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  const isPhoto = ext === 'jpg' || ext === 'jpeg';
+  const isVideo = ext === 'mp4';
+
+  document.getElementById('detail-filename').textContent = file.name;
+  setText('dm-name', file.name); setText('dm-type', ext.toUpperCase());
+  setText('dm-size', formatSize(file.size));
+  setText('dm-created', formatDateFull(file.created));
+  setText('dm-modified', formatDateFull(file.modified));
+  setText('dm-dir', file.dir);
+
+  // nav arrows
+  const hasPrev = state.currentDetailIdx > 0;
+  const hasNext = state.currentDetailIdx < state.filtered.length - 1;
+  document.getElementById('detail-prev').style.display = hasPrev && isPhoto ? 'flex' : 'none';
+  document.getElementById('detail-next').style.display = hasNext && isPhoto ? 'flex' : 'none';
+
+  // video-specific buttons
+  document.getElementById('btn-lrv-toggle').style.display = isVideo && file.lrv > 0 ? 'flex' : 'none';
+  document.getElementById('btn-clip-toggle').style.display = isVideo ? 'flex' : 'none';
+  document.getElementById('btn-hilight').style.display = isVideo ? 'flex' : 'none';
+  document.getElementById('video-overlay').style.display = isVideo ? 'flex' : 'none';
+  document.getElementById('btn-dl-lrv').style.display = isVideo && file.lrv > 0 ? 'flex' : 'none';
+
+  // reset clip
+  state.showClip = false;
+  document.getElementById('clip-controls').classList.remove('show');
+  document.getElementById('btn-clip-toggle').classList.remove('active');
+
+  // reset LRV
+  state.useLRV = false;
+  document.getElementById('btn-lrv-toggle').classList.remove('active');
+
+  renderDetailPreview(file, isPhoto, isVideo);
+  document.getElementById('detail-overlay').classList.add('open');
+}
+
+function renderDetailPreview(file, isPhoto, isVideo) {
+  const prev = document.getElementById('detail-preview');
+  // remove old media elements (stop streams)
+  prev.querySelectorAll('img[data-media],video').forEach(el => {
+    if (el.tagName === 'VIDEO') { el.pause(); el.src = ''; }
+    el.remove();
+  });
+
+  if (isPhoto) {
+    const imgUrl = `${BASE_URL}/videos/DCIM/${file.dir}/${file.name}`;
+    const img = document.createElement('img');
+    img.dataset.media = '1';
+    img.src = imgUrl; img.alt = file.name;
+    img.onerror = () => { prev.querySelector('.no-preview')?.remove(); prev.innerHTML += `<div class="no-preview">${svgFile()}<span>Preview unavailable</span></div>`; };
+    prev.insertBefore(img, prev.querySelector('.detail-nav.next'));
+  } else if (isVideo) {
+    const ext = file.name.split('.').pop();
+    const fname = state.useLRV && file.lrv > 0 ? file.name.replace(new RegExp(`\\.${ext}$`,'i'), '.LRV') : file.name;
+    const videoUrl = `${BASE_URL}/videos/DCIM/${file.dir}/${fname}`;
+    const vid = document.createElement('video');
+    vid.src = videoUrl; vid.controls = true;
+    vid.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000;';
+    prev.insertBefore(vid, prev.querySelector('#video-overlay'));
+  } else {
+    if (!prev.querySelector('.no-preview')) {
+      const div = document.createElement('div');
+      div.className = 'no-preview';
+      div.innerHTML = svgFile() + '<span>No preview</span>';
+      prev.insertBefore(div, prev.querySelector('.detail-nav.next'));
+    }
+  }
+}
+
+function navigateDetail(dir) {
+  const idx = state.currentDetailIdx + dir;
+  if (idx < 0 || idx >= state.filtered.length) return;
+  openDetail(state.filtered[idx]);
+}
+
+function toggleLRV() {
+  state.useLRV = !state.useLRV;
+  document.getElementById('btn-lrv-toggle').classList.toggle('active', state.useLRV);
+  if (state.currentFile) {
+    const ext = state.currentFile.name.split('.').pop().toLowerCase();
+    renderDetailPreview(state.currentFile, false, ext === 'mp4');
+  }
+}
+
+function toggleClip() {
+  state.showClip = !state.showClip;
+  document.getElementById('clip-controls').classList.toggle('show', state.showClip);
+  document.getElementById('btn-clip-toggle').classList.toggle('active', state.showClip);
+}
+
+function setClipPoint(type) {
+  const vid = document.querySelector('#detail-preview video');
+  if (!vid) return;
+  document.getElementById(`clip-${type}`).value = vid.currentTime.toFixed(1);
+}
+
+async function exportClip() {
+  if (!state.serverInfo?.ffmpeg) { showToast('ffmpeg not found on server', 'red'); return; }
+  const f = state.currentFile;
+  if (!f) return;
+  const start    = parseFloat(document.getElementById('clip-start').value) || 0;
+  const endVal   = parseFloat(document.getElementById('clip-end').value) || 0;
+  const duration = endVal > start ? endVal - start : 30;
+  const path = encodeURIComponent(`${f.dir}/${f.name}`);
+  showToast('Exporting clip…');
+  try {
+    const res = await fetch(`${PROXY_ORIGIN}/clip?path=${path}&start=${start}&duration=${duration}`, { signal: AbortSignal.timeout(300000) });
+    if (!res.ok) throw new Error('Failed');
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `clip_${f.name}`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('Clip saved', 'green');
+  } catch(_) { showToast('Clip export failed', 'red'); }
+}
+
+function addHilight() {
+  const vid = document.querySelector('#detail-preview video');
+  if (!vid || !state.currentFile) return;
+  const ms = Math.round(vid.currentTime * 1000);
+  const path = encodeURIComponent(`${state.currentFile.dir}/${state.currentFile.name}`);
+  fetch(`${BASE_URL}/gopro/media/hilight/file?path=${path}&ms=${ms}`)
+    .then(() => showToast('HiLight added ⚑', 'green'))
+    .catch(() => showToast('HiLight failed', 'red'));
+}
+
+function closeDetail(e) { if (e.target === document.getElementById('detail-overlay')) closeDetailBtn(); }
+function closeDetailBtn() {
+  const vid = document.querySelector('#detail-preview video');
+  if (vid) { vid.pause(); vid.src = ''; }
+  document.getElementById('detail-overlay').classList.remove('open');
+}
+
+// ── DOWNLOAD QUEUE ────────────────────────────────────────────────────
+function queueDownload(file, downloadAs) {
+  const item = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+    file, downloadAs: downloadAs || file.name,
+    status: 'queued', progress: 0,
+    controller: new AbortController(),
+  };
+  state.dlQueue.push(item);
+  document.getElementById('dl-tray').classList.add('open');
+  renderDLTray();
+  if (!state.dlActive) processQueue();
+}
+
+async function processQueue() {
+  if (state.dlActive) return;
+  const next = state.dlQueue.find(i => i.status === 'queued');
+  if (!next) return;
+  state.dlActive = true;
+  next.status = 'active';
+  renderDLTray();
+  try {
+    const url = `${BASE_URL}/videos/DCIM/${next.file.dir}/${next.file.name}`;
+    const res = await fetch(url, { signal: next.controller.signal });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const total = parseInt(res.headers.get('content-length') || '0');
+    const reader = res.body.getReader();
+    const chunks = [];
+    let received = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.length;
+      if (total > 0) { next.progress = Math.round(received / total * 100); renderDLItem(next); }
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(chunks));
+    a.download = next.downloadAs;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    next.status = 'done'; next.progress = 100;
+    state.downloaded.add(next.file.name);
+    showToast(`${next.downloadAs} saved`, 'green');
+  } catch(e) {
+    next.status = (e.name === 'AbortError' || next.status === 'cancelled') ? 'cancelled' : 'error';
+  }
+  state.dlActive = false;
+  renderDLTray();
+  if (state.dlQueue.some(i => i.status === 'queued')) processQueue();
+}
+
+function cancelDownload(id) {
+  const item = state.dlQueue.find(i => i.id === id);
+  if (!item) return;
+  item.controller.abort();
+  item.status = 'cancelled';
+  if (state.dlActive) { state.dlActive = false; processQueue(); }
+  renderDLTray();
+}
+
+function clearDoneDL() {
+  state.dlQueue = state.dlQueue.filter(i => i.status === 'queued' || i.status === 'active');
+  renderDLTray();
+}
+
+function toggleTray() {
+  const t = document.getElementById('dl-tray');
+  t.classList.toggle('open');
+}
+
+function renderDLTray() {
+  const list = document.getElementById('dl-tray-list');
+  const active = state.dlQueue.filter(i => i.status === 'active' || i.status === 'queued').length;
+  const done   = state.dlQueue.filter(i => i.status === 'done').length;
+  document.getElementById('dl-tray-sub').textContent = `${active} active · ${done} done`;
+  list.innerHTML = '';
+  [...state.dlQueue].reverse().forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'dl-item';
+    el.id = 'dl-' + item.id;
+    el.innerHTML = `
+      <div class="dl-item-icon ${item.status}"></div>
+      <div class="dl-item-name" title="${item.downloadAs}">${item.downloadAs}</div>
+      ${item.status === 'active' ? `<div class="dl-item-prog-wrap"><div class="dl-item-prog" style="width:${item.progress}%"></div></div><div class="dl-item-pct">${item.progress}%</div>` : `<div class="dl-item-pct">${item.status}</div>`}
+      ${item.status !== 'done' ? `<button class="dl-item-cancel" onclick="cancelDownload('${item.id}')">✕</button>` : ''}
+    `;
+    list.appendChild(el);
+  });
+}
+
+function renderDLItem(item) {
+  const el = document.getElementById('dl-' + item.id);
+  if (!el) return;
+  const bar = el.querySelector('.dl-item-prog');
+  const pct = el.querySelector('.dl-item-pct');
+  if (bar) bar.style.width = item.progress + '%';
+  if (pct) pct.textContent = item.progress + '%';
+}
+
+// ── DELETE ───────────────────────────────────────────────────────────
+async function deleteFile(dir, name) {
+  if (!confirm(`Delete ${name}?\nThis cannot be undone.`)) return;
+  try {
+    await fetch(`${BASE_URL}/gopro/media/delete/file?path=${dir}/${name}`);
+    state.allFiles = state.allFiles.filter(f => !(f.dir === dir && f.name === name));
+    state.sessions = buildSessions(state.allFiles);
+    state.selected.delete(name);
+    updateCounts(); applyFilters(); updateSidebarStats(); updateStorageViz();
+    showToast(`${name} deleted`, 'green');
+  } catch(_) { showToast('Delete failed', 'red'); }
+}
+
+function deleteCurrent() {
+  if (!state.currentFile) return;
+  const f = state.currentFile;
+  closeDetailBtn();
+  deleteFile(f.dir, f.name);
+}
+
+async function deleteSelected() {
+  const files = state.allFiles.filter(f => state.selected.has(f.name));
+  if (!files.length) return;
+  if (!confirm(`Delete ${files.length} file${files.length>1?'s':''}?\nThis cannot be undone.`)) return;
+  for (const f of files) {
+    try {
+      await fetch(`${BASE_URL}/gopro/media/delete/file?path=${f.dir}/${f.name}`);
+      state.allFiles = state.allFiles.filter(x => x.name !== f.name);
+    } catch(_) {}
+  }
+  state.sessions = buildSessions(state.allFiles);
+  state.selected.clear();
+  updateSelBar(); updateCounts(); applyFilters(); updateSidebarStats(); updateStorageViz();
+  showToast('Files deleted', 'green');
+}
+
+// ── DOWNLOAD HELPERS ──────────────────────────────────────────────────
+function downloadCurrent() {
+  if (!state.currentFile) return;
+  const prefix = document.getElementById('dl-prefix').value.trim();
+  const name = prefix + state.currentFile.name;
+  queueDownload(state.currentFile, name);
+  showToast(`Queued: ${name}`);
+}
+
+function downloadLRVCurrent() {
+  if (!state.currentFile) return;
+  const lrvFile = { ...state.currentFile, name: state.currentFile.name.replace(/\.MP4$/i, '.LRV') };
+  queueDownload(lrvFile, lrvFile.name);
+}
+
+function downloadSelected() {
+  const prefix = document.getElementById('dl-prefix').value.trim();
+  const files = state.allFiles.filter(f => state.selected.has(f.name));
+  files.forEach(f => queueDownload(f, prefix + f.name));
+  clearSelection();
+  showToast(`${files.length} files queued`);
+}
+
+// ── SELECTION ─────────────────────────────────────────────────────────
+function toggleSelect(file, card) {
+  if (state.selected.has(file.name)) { state.selected.delete(file.name); card.classList.remove('selected'); }
+  else { state.selected.add(file.name); card.classList.add('selected'); }
+  updateSelBar();
+}
+function clearSelection() {
+  state.selected.clear();
+  document.querySelectorAll('.media-card.selected').forEach(c => c.classList.remove('selected'));
+  updateSelBar();
+}
+function updateSelBar() {
+  const bar = document.getElementById('sel-bar');
+  if (state.selected.size > 0) {
+    bar.classList.add('show');
+    document.getElementById('sel-count-label').textContent = `${state.selected.size} file${state.selected.size>1?'s':''} selected`;
+  } else { bar.classList.remove('show'); }
+}
+
+// ── EXPORT MANIFEST ──────────────────────────────────────────────────
+function exportManifest() {
+  if (!state.allFiles.length) { showToast('No files loaded', 'red'); return; }
+  const rows = ['Name,Type,Size (bytes),Size,Created,Modified,Directory,Session,Chapter'];
+  for (const f of state.allFiles) {
+    const parsed = parseFilename(f.name);
+    rows.push([f.name, f.name.split('.').pop().toUpperCase(), f.size, formatSize(f.size),
+      new Date(f.created).toISOString(), new Date(f.modified).toISOString(),
+      f.dir, parsed?.session||'', parsed?.chapter||''].join(','));
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([rows.join('\n')], { type:'text/csv' }));
+  a.download = `gopro_manifest_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('Manifest exported', 'green');
+}
+
+// ── SETTINGS MODAL ────────────────────────────────────────────────────
+function openSettings() {
+  const s = state.cameraSettings;
+  const rows = [
+    ['Mode', MODE_NAMES[state.cameraMode] || '—'],
+    ['Resolution', RES_NAMES[s[2]] || (s[2] !== undefined ? `#${s[2]}` : '—')],
+    ['Frame Rate', FPS_NAMES[s[3]] || (s[3] !== undefined ? `#${s[3]}` : '—')],
+    ['HyperSmooth', HS_NAMES[s[78]] || (s[78] !== undefined ? `#${s[78]}` : '—')],
+    ['Battery', state.battery != null ? state.battery + '%' : '—'],
+    ['SD Remaining', state.remainingMinutes != null ? state.remainingMinutes + ' min' : '—'],
+    ['Recording', state.recording ? '● REC' : 'Idle'],
+  ];
+  document.getElementById('settings-rows').innerHTML = rows.map(([k,v]) =>
+    `<div class="settings-row"><span class="settings-k">${k}</span><span class="settings-v ${v==='● REC'?'recording':''}">${v}</span></div>`
+  ).join('');
+  document.getElementById('settings-overlay').classList.add('open');
+}
+
+// ── CHECKLIST MODAL ──────────────────────────────────────────────────
+function openChecklist() {
+  const checks = [];
+  checks.push({ label:'Camera connected', pass:state.connected, detail:state.connected?'Hero 10 Black':'Not connected' });
+  if (state.battery !== null) {
+    const ok = state.battery >= 50;
+    checks.push({ label:'Battery ≥ 50%', pass:ok, warn:state.battery>=30&&!ok, detail:state.battery+'%' });
+  }
+  if (state.remainingMinutes !== null) {
+    const ok = state.remainingMinutes >= 30;
+    checks.push({ label:'SD space ≥ 30 min', pass:ok, warn:state.remainingMinutes>=10&&!ok, detail:state.remainingMinutes+' min remaining' });
+  }
+  const s = state.cameraSettings;
+  if (s[78] !== undefined) {
+    checks.push({ label:'HyperSmooth enabled', pass:s[78]>0, detail:HS_NAMES[s[78]]||`#${s[78]}` });
+  }
+  if (s[2] !== undefined) {
+    const ok = s[2] <= 9;
+    checks.push({ label:'Resolution ≥ 1080p', pass:ok, detail:RES_NAMES[s[2]]||`#${s[2]}` });
+  }
+  if (!state.connected) {
+    document.getElementById('checklist-items').innerHTML = '<div style="text-align:center;padding:20px;font-size:12px;color:var(--text2)">Connect camera to run checklist</div>';
+  } else {
+    document.getElementById('checklist-items').innerHTML = checks.map(c => `
+      <div class="check-item ${c.pass?'pass':c.warn?'warn':'fail'}">
+        <span class="check-icon">${c.pass?'✓':c.warn?'⚠':'✗'}</span>
+        <span class="check-label">${c.label}</span>
+        <span class="check-detail">${c.detail||''}</span>
+      </div>`).join('');
+  }
+  document.getElementById('checklist-overlay').classList.add('open');
+}
+
+// ── SHARE MODAL ───────────────────────────────────────────────────────
+async function openShare() {
+  if (!state.serverInfo) {
+    try { state.serverInfo = await fetch(`${PROXY_ORIGIN}/info`).then(r => r.json()); } catch(_) {}
+  }
+  const url = state.serverInfo?.local_url || `http://localhost:8765`;
+  document.getElementById('share-url').textContent = url;
+  document.getElementById('share-overlay').classList.add('open');
+}
+
+function copyShareUrl() {
+  const url = document.getElementById('share-url').textContent;
+  navigator.clipboard.writeText(url)
+    .then(() => showToast('Copied to clipboard', 'green'))
+    .catch(() => showToast('Could not copy — select and copy manually', 'red'));
+}
+
+function closeModal(id, e) {
+  if (!e || e.target === document.getElementById(id)) {
+    document.getElementById(id).classList.remove('open');
+  }
+}
+
+// ── STATS & SIDEBAR ───────────────────────────────────────────────────
+function updateCounts() {
+  const vids  = state.allFiles.filter(f => /\.mp4$/i.test(f.name)).length;
+  const pics  = state.allFiles.filter(f => /\.(jpg|jpeg)$/i.test(f.name)).length;
+  const lrvs  = state.allFiles.filter(f => /\.lrv$/i.test(f.name)).length;
+  const total = state.allFiles.length;
+  setText('fc-all',total); setText('fc-mp4',vids); setText('fc-jpg',pics); setText('fc-lrv',lrvs);
+}
+function updateSidebarStats() {
+  const vids = state.allFiles.filter(f => /\.mp4$/i.test(f.name)).length;
+  const pics = state.allFiles.filter(f => /\.(jpg|jpeg)$/i.test(f.name)).length;
+  const lrvs = state.allFiles.filter(f => /\.lrv$/i.test(f.name)).length;
+  setText('s-vids',vids); setText('s-pics',pics); setText('s-lrv',lrvs); setText('s-total',state.allFiles.length);
+}
+function updateStorageViz() {
+  const vidSize = state.allFiles.filter(f => /\.mp4$/i.test(f.name)).reduce((s,f)=>s+f.size,0);
+  const picSize = state.allFiles.filter(f => /\.(jpg|jpeg)$/i.test(f.name)).reduce((s,f)=>s+f.size,0);
+  const lrvSize = state.allFiles.filter(f => /\.lrv$/i.test(f.name)).reduce((s,f)=>s+f.size,0);
+  const total   = vidSize + picSize + lrvSize;
+  if (total === 0) return;
+  document.getElementById('sb-vid-bar').style.width = (vidSize/total*100)+'%';
+  document.getElementById('sb-pic-bar').style.width = (picSize/total*100)+'%';
+  document.getElementById('sb-lrv-bar').style.width = (lrvSize/total*100)+'%';
+  setText('stor-vid', formatSize(vidSize));
+  setText('stor-pic', formatSize(picSize));
+  setText('stor-lrv', formatSize(lrvSize));
+}
+function updateStatusBar() {
+  const c = state.view === 'session'
+    ? (state.sessions[state.activeSessionId]?.files.length || 0)
+    : state.filtered.length;
+  setText('sb-count', c + ' file' + (c!==1?'s':''));
+  setText('sb-filter', state.filter==='all'?'All':'.' + state.filter.toUpperCase());
+  setText('sb-sort', 'by ' + state.sort);
+  setText('sb-viewed', state.viewed.size + ' viewed');
+}
+
+// ── CONNECT STATUS ────────────────────────────────────────────────────
+function setConnStatus(status, label) {
+  const el = document.getElementById('conn-status');
+  el.className = status; el.id = 'conn-status';
+  document.getElementById('conn-label').textContent = label;
+}
+function showCORSHelp() {
+  setText('empty-title','Connection failed');
+  document.getElementById('empty-sub').textContent = 'Could not reach the GoPro. Make sure the proxy is running and the camera is powered on.';
+  document.getElementById('empty-state').classList.remove('hidden');
+}
+function toggleHelp() { document.getElementById('empty-state').classList.toggle('hidden'); }
+
+// ── SKELETON ──────────────────────────────────────────────────────────
+function showSkeletons() {
+  const grid = document.getElementById('media-grid');
+  grid.classList.remove('hidden');
+  document.getElementById('empty-state').classList.add('hidden');
+  grid.className = 'media-grid';
+  grid.innerHTML = '';
+  for (let i = 0; i < 12; i++) {
+    const el = document.createElement('div');
+    el.className = 'media-card';
+    el.innerHTML = `<div class="card-thumb skeleton" style="aspect-ratio:16/9"></div><div class="card-info"><div class="skeleton" style="height:10px;margin-bottom:5px;border-radius:4px"></div><div class="skeleton" style="height:9px;width:55%;border-radius:4px"></div></div>`;
+    grid.appendChild(el);
+  }
+}
+
+// ── GOPRO HTTP ────────────────────────────────────────────────────────
+async function gopro(path) {
+  const res = await fetch(`${BASE_URL}${path}`, { signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────
+function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+function svgFile() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`; }
+function thumbError(img) { img.parentNode.innerHTML = `<div class="no-thumb">${svgFile()}</div>`; }
+function formatSize(bytes) {
+  if (!bytes) return '—';
+  if (bytes < 1048576) return (bytes/1024).toFixed(1)+' KB';
+  if (bytes < 1073741824) return (bytes/1048576).toFixed(1)+' MB';
+  return (bytes/1073741824).toFixed(2)+' GB';
+}
+function formatDate(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'2-digit'});
+}
+function formatDateFull(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+let toastTimer;
+function showToast(msg, type='') {
+  const el = document.getElementById('toast');
+  clearTimeout(toastTimer);
+  el.textContent = msg; el.className = 'show ' + type;
+  toastTimer = setTimeout(() => { el.className = ''; }, 2800);
+}
+
+// ── SPLASH / PROXY DETECTION ─────────────────────────────────────────
+async function checkProxy() {
+  const btn = document.querySelector('#splash .splash-btn.primary');
+  const spin = document.getElementById('splash-spin');
+  const err  = document.getElementById('splash-error');
+  btn.disabled = true; spin.style.display = 'flex'; err.style.display = 'none';
+  try {
+    const r = await fetch(`${PROXY_ORIGIN}/info`, { signal: AbortSignal.timeout(3000) });
+    if (r.ok) { hideSplash(); return; }
+  } catch(_) {}
+  spin.style.display = 'none'; btn.disabled = false; err.style.display = 'block';
+}
+
+function hideSplash() {
+  document.getElementById('splash').classList.add('hidden');
+}
+
+function copyCmd(el) {
+  navigator.clipboard.writeText('python3 gopro-proxy.py').catch(() => {});
+  const copy = el.querySelector('.splash-code-copy');
+  copy.textContent = 'copied!'; setTimeout(() => copy.textContent = 'copy', 1500);
+}
+
+function downloadProxy() {
+  const a = document.createElement('a');
+  a.href = `${PROXY_ORIGIN}/proxy-download`;
+  a.download = 'gopro-proxy.py'; a.click();
+}
+
+// Auto-detect proxy on load — skip splash if already running
+(async () => {
+  try {
+    const r = await fetch(`${PROXY_ORIGIN}/info`, { signal: AbortSignal.timeout(1500) });
+    if (r.ok) { hideSplash(); return; }
+  } catch(_) {}
+  // Not running — show splash (it's already visible by default)
+})();
+
+// ── KEYBOARD ──────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('detail-overlay').classList.contains('open')) { closeDetailBtn(); return; }
+    document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+  }
+  if (e.key === 'ArrowLeft'  && document.getElementById('detail-overlay').classList.contains('open')) navigateDetail(-1);
+  if (e.key === 'ArrowRight' && document.getElementById('detail-overlay').classList.contains('open')) navigateDetail(1);
+  if (e.key === 'r' && (e.metaKey||e.ctrlKey) && state.connected) { e.preventDefault(); loadMedia(); }
+});
+</script>
+</body>
+</html>
