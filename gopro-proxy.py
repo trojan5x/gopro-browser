@@ -25,8 +25,9 @@ from pathlib import Path
 
 PORT       = 8765
 GOPRO_BASE = "http://172.27.123.51:8080"
-HTML_FILE  = Path(__file__).parent / "index.html"
-HTML_FALLBACK = Path(__file__).parent / "gopro-browser.html"
+BASE_DIR   = Path(__file__).resolve().parent
+HTML_FILE  = BASE_DIR / "index.html"
+HTML_FALLBACK = BASE_DIR / "gopro-browser.html"
 
 CORS_HEADERS = {
     "Access-Control-Allow-Origin":  "*",
@@ -87,11 +88,11 @@ class GoProProxyHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/style.css":
-            self._serve_static(Path(__file__).parent / "style.css", "text/css; charset=utf-8")
+            self._serve_static(BASE_DIR / "style.css", "text/css; charset=utf-8")
             return
 
         if path == "/app.js":
-            self._serve_static(Path(__file__).parent / "app.js", "application/javascript; charset=utf-8")
+            self._serve_static(BASE_DIR / "app.js", "application/javascript; charset=utf-8")
             return
 
         if path == "/info" or path.startswith("/info?"):
@@ -204,7 +205,7 @@ class GoProProxyHandler(http.server.BaseHTTPRequestHandler):
     # ── /proxy-download → serve this script ─────────────────────────
 
     def _serve_proxy_script(self):
-        script = Path(__file__)
+        script = Path(__file__).resolve()
         content = script.read_bytes()
         self.send_response(200)
         self.send_cors()
