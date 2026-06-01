@@ -378,21 +378,13 @@ button{font-family:var(--sans);cursor:pointer}
       <div class="splash-step">
         <div class="splash-step-num">1</div>
         <div class="splash-step-body">
-          <div class="splash-step-label">Download the proxy script</div>
-          <div class="splash-step-desc">A single Python file — no installs, no dependencies.</div>
-          <div class="splash-code" onclick="downloadProxy()"><span>gopro-proxy.py</span><span class="splash-code-copy">download ↓</span></div>
+          <div class="splash-step-label">Run this in your terminal</div>
+          <div class="splash-step-desc">Requires Python 3 (pre-installed on Mac). No installs, no dependencies.</div>
+          <div class="splash-code" onclick="copyCmd(this)"><span>curl -s https://raw.githubusercontent.com/trojan5x/gopro-browser/main/gopro-proxy.py | python3</span><span class="splash-code-copy">copy</span></div>
         </div>
       </div>
       <div class="splash-step">
         <div class="splash-step-num">2</div>
-        <div class="splash-step-body">
-          <div class="splash-step-label">Run it in your terminal</div>
-          <div class="splash-step-desc">Requires Python 3 (pre-installed on Mac). Windows/Linux also work.</div>
-          <div class="splash-code" onclick="copyCmd(this)"><span>python3 gopro-proxy.py</span><span class="splash-code-copy">copy</span></div>
-        </div>
-      </div>
-      <div class="splash-step">
-        <div class="splash-step-num">3</div>
         <div class="splash-step-body">
           <div class="splash-step-label">Plug in your GoPro via USB-C and press power</div>
           <div class="splash-step-desc">Works with GoPro Hero 10 and later. The camera's HTTP API activates automatically when powered on with USB connected.</div>
@@ -404,7 +396,6 @@ button{font-family:var(--sans);cursor:pointer}
         <div class="splash-dot-spin" id="splash-spin" style="display:none"></div>
         I've started the proxy →
       </button>
-      <button class="splash-btn secondary" onclick="downloadProxy()">Download proxy script</button>
     </div>
     <div id="splash-error" style="margin-top:14px;font-size:12px;color:var(--red);display:none">
       Proxy not detected at localhost:8765. Make sure the terminal shows "Serving on → http://localhost:8765" then try again.
