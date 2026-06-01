@@ -65,6 +65,11 @@ button {
   display: none !important;
 }
 
+/* Sidebar backdrop — hidden on desktop, shown via JS on mobile */
+.sidebar-backdrop {
+  display: none;
+}
+
 /* APP LAYOUT */
 #app {
   display: grid;
@@ -2167,6 +2172,7 @@ button {
 
   /* Sidebar Backdrop */
   .sidebar-backdrop {
+    display: block;
     position: fixed;
     top: 0;
     left: 0;
