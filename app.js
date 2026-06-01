@@ -1,7 +1,12 @@
 // GoPro Browser Application Logic (Evercloud Theme)
 
 // ── CONFIG ───────────────────────────────────────────────────────────
-const PROXY_ORIGIN = 'http://localhost:8765';
+// Determine proxy origin dynamically so remote clients (e.g. mobile phones on the same Wi-Fi) can access it.
+// When hosted on GitHub Pages or local files, default to localhost.
+const PROXY_ORIGIN = (
+  window.location.protocol.startsWith('http') && 
+  !window.location.hostname.includes('github.io')
+) ? window.location.origin : 'http://localhost:8765';
 const BASE_URL = PROXY_ORIGIN + '/proxy';
 
 // ── LOOKUP TABLES ────────────────────────────────────────────────────
@@ -1065,7 +1070,7 @@ async function openShare() {
   if (!state.serverInfo) {
     try { state.serverInfo = await fetch(`${PROXY_ORIGIN}/info`).then(r => r.json()); } catch(_) {}
   }
-  const url = state.serverInfo?.local_url || `http://localhost:8765`;
+  const url = state.serverInfo?.local_url || window.location.origin || `http://localhost:8765`;
   document.getElementById('share-url').textContent = url;
 
   const qrImg = document.getElementById('share-qr');
@@ -1363,6 +1368,7 @@ async function splashCheckCamera() {
       splashSetDone(2);
       await new Promise(res => setTimeout(res, 600));
       hideSplash();
+      connectCamera();
       return;
     }
   } catch(_) {}
@@ -1423,6 +1429,7 @@ function setupKeyboardShortcuts() {
       splashSetDone(2); 
       await new Promise(res => setTimeout(res, 400)); 
       hideSplash(); 
+      connectCamera();
     } else {
       document.getElementById('splash-btn-label').textContent = 'Check camera →';
     }
