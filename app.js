@@ -742,10 +742,13 @@ async function exportClip() {
 function addHilight() {
   const vid = document.querySelector('#detail-preview video');
   if (!vid || !state.currentFile) return;
-  const ms = Math.round(vid.currentTime * 1000);
-  const path = encodeURIComponent(`${state.currentFile.dir}/${state.currentFile.name}`);
-  fetch(`${BASE_URL}/gopro/media/hilight/file?path=${path}&ms=${ms}`)
-    .then(() => showToast('HiLight added ⚑', 'green'))
+  const ms = Math.max(1, Math.round(vid.currentTime * 1000));
+  const { dir, name } = state.currentFile;
+  fetch(`${BASE_URL}/gopro/media/hilight/file?path=${dir}/${name}&ms=${ms}`)
+    .then(res => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      showToast('HiLight added ⚑', 'green');
+    })
     .catch(() => showToast('HiLight failed', 'red'));
 }
 
