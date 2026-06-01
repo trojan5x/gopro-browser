@@ -42,6 +42,7 @@ const state = {
   showClip: false,
   isLegacy: false,
   isModern: false,
+  hilighted: new Set(),
 };
 
 // ── INIT ─────────────────────────────────────────────────────────────
@@ -263,6 +264,7 @@ async function loadMedia() {
     updateCounts();
     applyFilters();
     updateStorageViz();
+    fetchMediaHighlights();
   } catch(_) { 
     showToast('Failed to load media', 'red'); 
   }
@@ -374,6 +376,11 @@ function setFilter(f, btn) {
   state.filter = f;
   document.querySelectorAll('.sb-label-item').forEach(b => b.classList.remove('active'));
   btn?.classList.add('active');
+  
+  // Highlight File Manager menu item since labels belong to it
+  document.querySelectorAll('.sb-menu-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('menu-media').classList.add('active');
+  
   applyFilters();
 }
 
@@ -399,7 +406,11 @@ function applyFilters() {
   }
   let files = [...state.allFiles];
   if (state.filter !== 'all') {
-    files = files.filter(f => f.name.toLowerCase().endsWith('.' + state.filter));
+    if (state.filter === 'hilights') {
+      files = files.filter(f => state.hilighted.has(`${f.dir}/${f.name}`));
+    } else {
+      files = files.filter(f => f.name.toLowerCase().endsWith('.' + state.filter));
+    }
   }
   if (state.searchQ) {
     files = files.filter(f => f.name.toLowerCase().includes(state.searchQ));
@@ -748,6 +759,24 @@ function addHilight() {
     .then(res => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       showToast('HiLight added ⚑', 'green');
+      
+      const id = `${dir}/${name}`;
+      state.hilighted.add(id);
+      
+      // Update local file highlight offsets
+      const f = state.allFiles.find(file => file.dir === dir && file.name === name);
+      if (f) {
+        if (!f.hilights) f.hilights = [];
+        if (!f.hilights.includes(ms)) {
+          f.hilights.push(ms);
+          f.hilights.sort((a, b) => a - b);
+        }
+      }
+      
+      updateCounts();
+      if (state.filter === 'hilights') {
+        applyFilters();
+      }
     })
     .catch(() => showToast('HiLight failed', 'red'));
 }
@@ -1064,6 +1093,13 @@ function closeModal(id, e) {
 function showSection(section) {
   if (section === 'media') {
     closeSession(true);
+    state.filter = 'all';
+    document.querySelectorAll('.sb-menu-item').forEach(b => b.classList.remove('active'));
+    document.getElementById('menu-media').classList.add('active');
+    document.querySelectorAll('.sb-label-item').forEach(b => b.classList.remove('active'));
+    const allLabel = document.querySelector('.sb-label-item');
+    if (allLabel) allLabel.classList.add('active');
+    applyFilters();
   }
 }
 
@@ -1074,10 +1110,21 @@ function focusSearch() {
 }
 
 function filterHighlights() {
-  showToast("Showing starred / tagged media segments!");
-  // filter mock: show only items containing hilights/tags (not fully API supported, fallback)
-  // in our case, show files containing GX session keys or starred tags.
-  showToast("No HiLight logs recorded yet", "warn");
+  state.filter = 'hilights';
+  
+  // Force grid view if grouped to apply highlight filters
+  if (state.view === 'grouped' || state.view === 'session') {
+    state.view = 'grid';
+    document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.remove('active'));
+    const gridBtn = document.querySelector('.view-toggle-btn[onclick*="setView(\'grid\'"]');
+    if (gridBtn) gridBtn.classList.add('active');
+  }
+
+  document.querySelectorAll('.sb-menu-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('menu-favorites').classList.add('active');
+  document.querySelectorAll('.sb-label-item').forEach(b => b.classList.remove('active'));
+  
+  applyFilters();
 }
 
 // ── STATS & STORAGE VIZ ──────────────────────────────────────────────
@@ -1085,12 +1132,47 @@ function updateCounts() {
   const vids  = state.allFiles.filter(f => /\.mp4$/i.test(f.name)).length;
   const pics  = state.allFiles.filter(f => /\.(jpg|jpeg)$/i.test(f.name)).length;
   const lrvs  = state.allFiles.filter(f => /\.lrv$/i.test(f.name)).length;
+  const hilights = state.hilighted.size;
   const total = state.allFiles.length;
   
   setText('fc-all', total); 
   setText('fc-mp4', vids); 
   setText('fc-jpg', pics); 
   setText('fc-lrv', lrvs);
+  setText('fc-hilight', hilights);
+}
+
+async function fetchMediaHighlights() {
+  if (!state.connected || !state.allFiles.length) return;
+  
+  // Reset highlighted Set to ensure accurate tracking on reload
+  state.hilighted.clear();
+  
+  // Only query metadata for MP4 video files
+  const mp4Files = state.allFiles.filter(f => /\.mp4$/i.test(f.name));
+  
+  for (const f of mp4Files) {
+    if (!state.connected) break;
+    
+    const id = `${f.dir}/${f.name}`;
+    try {
+      const data = await gopro(`/gopro/media/info?path=${f.dir}/${f.name}`);
+      if (data && (parseInt(data.hc) > 0 || (Array.isArray(data.hi) && data.hi.length > 0))) {
+        state.hilighted.add(id);
+        f.hilights = data.hi || [];
+        
+        updateCounts();
+        if (state.filter === 'hilights') {
+          applyFilters();
+        }
+      }
+    } catch (e) {
+      console.warn(`Failed to fetch media info for ${f.name}`, e);
+    }
+    
+    // Slow down requests to avoid camera CPU starvation
+    await new Promise(r => setTimeout(r, 120));
+  }
 }
 
 function updateStorageViz() {
