@@ -280,6 +280,32 @@
           </div>
           
           <div id="media-grid" class="media-grid hidden"></div>
+
+          <!-- LIVE VIEWFINDER OVERLAY -->
+          <div id="live-viewfinder" class="viewfinder-container hidden">
+            <div class="viewfinder-card">
+              <div class="viewfinder-header">
+                <div class="viewfinder-title">Live Viewfinder</div>
+                <div class="viewfinder-rec-pill">
+                  <span class="status-dot recording"></span>
+                  <span>REC</span>
+                </div>
+              </div>
+              <div class="viewfinder-screen">
+                <img id="viewfinder-img" alt="GoPro Live Preview Feed" src="">
+                <div class="viewfinder-no-signal">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2l20 20M5.636 5.636a9 9 0 0 1 12.728 0M7.757 7.757a6 6 0 0 1 8.486 0M9.879 9.879a3 3 0 0 1 4.242 0M12 12v.01"/></svg>
+                  <span>Connecting to Stream...</span>
+                </div>
+              </div>
+              <div class="viewfinder-footer">
+                <button class="btn-primary stop-rec-btn" onclick="toggleShutter()">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                  Stop Recording
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
         
         <!-- FOOTER STATUS BAR -->

@@ -185,16 +185,44 @@ async function pollCameraState() {
     const recPill = document.getElementById('live-rec-pill');
     const shutterLabel = document.getElementById('shutter-label');
     
+    const vf = document.getElementById('live-viewfinder');
+    const vfImg = document.getElementById('viewfinder-img');
+    const grid = document.getElementById('media-grid');
+    const empty = document.getElementById('empty-state');
+    
     if (state.recording) {
       recPill.className = 'status-pill recording';
       recLabel.textContent = 'REC';
       if (shutterLabel) shutterLabel.textContent = 'Stop';
       document.getElementById('btn-shutter').className = 'btn-secondary recording';
+      
+      // Toggle viewfinder preview
+      if (vf) {
+        vf.classList.remove('hidden');
+        if (vfImg && !vfImg.src) {
+          vfImg.src = `${PROXY_ORIGIN}/live-preview?t=${Date.now()}`;
+        }
+      }
+      grid.classList.add('hidden');
+      empty.style.display = 'none';
     } else {
       recPill.className = 'status-pill';
       recLabel.textContent = 'Idle';
       if (shutterLabel) shutterLabel.textContent = 'Record';
       document.getElementById('btn-shutter').className = 'btn-secondary';
+      
+      // Stop viewfinder preview
+      if (vf) {
+        vf.classList.add('hidden');
+        if (vfImg) vfImg.removeAttribute('src');
+      }
+      if (state.connected) {
+        grid.classList.remove('hidden');
+        empty.style.display = 'none';
+      } else {
+        grid.classList.add('hidden');
+        empty.style.display = 'flex';
+      }
     }
 
     if (state.battery !== null) {

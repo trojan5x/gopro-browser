@@ -2403,3 +2403,150 @@ button {
     word-break: break-all;
   }
 }
+
+/* ── LIVE VIEWFINDER SCREEN ───────────────────────────────────────── */
+.viewfinder-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 24px;
+  animation: fadeUp 0.3s ease both;
+}
+
+.viewfinder-card {
+  width: 100%;
+  max-width: 800px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.viewfinder-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+}
+
+.viewfinder-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.viewfinder-rec-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-red-text);
+  background: var(--accent-red-light);
+  padding: 4px 10px;
+  border-radius: 99px;
+  animation: pulsePill 1.5s infinite ease-in-out;
+}
+
+@keyframes pulsePill {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.viewfinder-screen {
+  position: relative;
+  background: #090d16;
+  width: 100%;
+  aspect-ratio: 16/9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.viewfinder-screen img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  z-index: 2;
+}
+
+/* Fallback signal if stream is offline or establishing */
+.viewfinder-no-signal {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-tertiary);
+  z-index: 1;
+}
+
+.viewfinder-no-signal svg {
+  width: 48px;
+  height: 48px;
+  color: var(--text-tertiary);
+}
+
+.viewfinder-no-signal span {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.viewfinder-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f8fafc;
+}
+
+.stop-rec-btn {
+  background: var(--accent-red) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(239, 68, 68, 0.2) !important;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  padding: 10px 24px;
+}
+
+.stop-rec-btn:hover {
+  background: #dc2626 !important;
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.35);
+}
+
+.stop-rec-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Adjust viewfinder layout on mobile screens */
+@media (max-width: 768px) {
+  .viewfinder-container {
+    padding: 12px;
+  }
+  .viewfinder-card {
+    border-radius: 12px;
+  }
+  .viewfinder-header,
+  .viewfinder-footer {
+    padding: 12px 16px;
+  }
+  .stop-rec-btn {
+    width: 100%;
+  }
+}

@@ -21,6 +21,8 @@ import json
 import socket
 import subprocess
 import tempfile
+import threading
+import queue
 from pathlib import Path
 
 PORT       = 8765
@@ -54,6 +56,168 @@ def has_ffmpeg():
         return True
     except Exception:
         return False
+
+
+class PreviewBroadcaster:
+    def __init__(self):
+        self.clients = []
+        self.lock = threading.Lock()
+        self.ffmpeg_proc = None
+        self.udp_thread = None
+        self.stop_event = None
+        self.active = False
+        
+    def add_client(self, q):
+        with self.lock:
+            self.clients.append(q)
+            if not self.active:
+                self.start_stream()
+                
+    def remove_client(self, q):
+        with self.lock:
+            if q in self.clients:
+                self.clients.remove(q)
+            if not self.clients and self.active:
+                self.stop_stream()
+                
+    def start_stream(self):
+        if not has_ffmpeg():
+            print("  [Preview] FFmpeg not found! Cannot start preview stream.")
+            return
+            
+        print("  [Preview] Starting live preview stream from GoPro...")
+        self.active = True
+        self.stop_event = threading.Event()
+        
+        # 1. Start the UDP stripper thread
+        self.udp_thread = threading.Thread(target=self._udp_stripper_loop, daemon=True)
+        self.udp_thread.start()
+        
+        # 2. Tell GoPro to start streaming
+        def start_gopro_api():
+            try:
+                url = GOPRO_BASE + "/gopro/camera/stream/start"
+                req = urllib.request.Request(url, headers={"User-Agent": "GoProBrowser/1.0"})
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    print(f"  [Preview] GoPro stream start API response: {resp.status}")
+            except Exception as e:
+                print(f"  [Preview] Error starting GoPro stream via API: {e}")
+                
+        threading.Thread(target=start_gopro_api, daemon=True).start()
+        
+        # 3. Start ffmpeg process
+        cmd = [
+            "ffmpeg", "-y",
+            "-fflags", "nobuffer",
+            "-flags", "low_delay",
+            "-f", "mpegts",
+            "-i", "udp://127.0.0.1:8555",
+            "-c:v", "mjpeg",
+            "-q:v", "4",
+            "-an",
+            "-f", "image2pipe",
+            "-"
+        ]
+        try:
+            self.ffmpeg_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            threading.Thread(target=self._ffmpeg_reader_loop, daemon=True).start()
+        except Exception as e:
+            print(f"  [Preview] Error launching FFmpeg: {e}")
+            self.stop_stream()
+
+    def stop_stream(self):
+        print("  [Preview] Stopping live preview stream...")
+        self.active = False
+        if self.stop_event:
+            self.stop_event.set()
+            
+        if self.ffmpeg_proc:
+            try:
+                self.ffmpeg_proc.terminate()
+                self.ffmpeg_proc.wait(timeout=2)
+            except Exception:
+                pass
+            self.ffmpeg_proc = None
+            
+        # Tell GoPro to stop streaming
+        def stop_gopro_api():
+            try:
+                url = GOPRO_BASE + "/gopro/camera/stream/stop"
+                req = urllib.request.Request(url, headers={"User-Agent": "GoProBrowser/1.0"})
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    print(f"  [Preview] GoPro stream stop API response: {resp.status}")
+            except Exception as e:
+                print(f"  [Preview] Error stopping GoPro stream via API: {e}")
+                
+        threading.Thread(target=stop_gopro_api, daemon=True).start()
+        self.udp_thread = None
+        
+    def _udp_stripper_loop(self):
+        import socket
+        in_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        in_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            in_sock.bind(("", 8554))
+        except Exception as e:
+            print(f"  [Preview] Failed to bind UDP port 8554: {e}")
+            in_sock.close()
+            return
+            
+        in_sock.settimeout(0.5)
+        out_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        
+        while not self.stop_event.is_set():
+            try:
+                data, addr = in_sock.recvfrom(8192)
+                if len(data) > 12:
+                    out_sock.sendto(data[12:], ("127.0.0.1", 8555))
+            except socket.timeout:
+                continue
+            except Exception as e:
+                print(f"  [Preview] UDP Stripper exception: {e}")
+                break
+                
+        in_sock.close()
+        out_sock.close()
+        
+    def _ffmpeg_reader_loop(self):
+        buffer = bytearray()
+        stdout = self.ffmpeg_proc.stdout
+        
+        while self.active and self.ffmpeg_proc:
+            try:
+                chunk = stdout.read(8192)
+                if not chunk:
+                    break
+                buffer.extend(chunk)
+                
+                while True:
+                    start = buffer.find(b'\xff\xd8')
+                    if start == -1:
+                        break
+                    end = buffer.find(b'\xff\xd9', start)
+                    if end == -1:
+                        break
+                        
+                    jpeg = buffer[start:end+2]
+                    del buffer[:end+2]
+                    
+                    with self.lock:
+                        for q in self.clients:
+                            try:
+                                q.put_nowait(jpeg)
+                            except queue.Full:
+                                try:
+                                    q.get_nowait()
+                                    q.put_nowait(jpeg)
+                                except Exception:
+                                    pass
+            except Exception as e:
+                print(f"  [Preview] FFmpeg reader loop exception: {e}")
+                break
+
+
+preview_broadcaster = PreviewBroadcaster()
 
 
 class GoProProxyHandler(http.server.BaseHTTPRequestHandler):
@@ -97,6 +261,10 @@ class GoProProxyHandler(http.server.BaseHTTPRequestHandler):
 
         if path == "/info" or path.startswith("/info?"):
             self._serve_info()
+            return
+
+        if path == "/live-preview" or path.startswith("/live-preview?"):
+            self._serve_live_preview()
             return
 
         if path.startswith("/clip"):
@@ -143,6 +311,31 @@ class GoProProxyHandler(http.server.BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+
+    def _serve_live_preview(self):
+        q = queue.Queue(maxsize=10)
+        preview_broadcaster.add_client(q)
+        
+        try:
+            self.send_response(200)
+            self.send_cors()
+            self.send_header('Content-Type', 'multipart/x-mixed-replace; boundary=frame')
+            self.end_headers()
+            
+            while True:
+                try:
+                    jpeg = q.get(timeout=1.0)
+                    self.wfile.write(b'--frame\r\n')
+                    self.wfile.write(b'Content-Type: image/jpeg\r\n')
+                    self.wfile.write(f'Content-Length: {len(jpeg)}\r\n\r\n'.encode())
+                    self.wfile.write(jpeg)
+                    self.wfile.write(b'\r\n')
+                except queue.Empty:
+                    self.wfile.write(b'\r\n')
+                except (BrokenPipeError, ConnectionResetError, OSError):
+                    break
+        finally:
+            preview_broadcaster.remove_client(q)
 
     # ── /clip  (ffmpeg clip extraction) ─────────────────────────────
 
