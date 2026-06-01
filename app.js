@@ -41,6 +41,7 @@ const state = {
   useLRV: false, 
   showClip: false,
   isLegacy: false,
+  isModern: false,
 };
 
 // ── INIT ─────────────────────────────────────────────────────────────
@@ -99,6 +100,21 @@ async function connectCamera() {
     const modelName = info?.info?.model_name || 'HERO10 Black';
     document.getElementById('breadcrumb').textContent = modelName;
 
+    // Determine if it is a modern camera (Hero 9+)
+    const modelUpper = modelName.toUpperCase();
+    state.isModern = modelUpper.includes('HERO9') || modelUpper.includes('HERO10') || modelUpper.includes('HERO11') || modelUpper.includes('HERO12') || modelUpper.includes('HERO13') || !state.isLegacy;
+
+    // Initialize Wired USB Control & Claim UI Control (for modern GoPros over USB)
+    if (state.isModern) {
+      try {
+        console.log('Activating Wired USB Control (p=1) and UI Controller (p=2)...');
+        await fetch(`${BASE_URL}/gopro/camera/control/wired_usb?p=1`).catch(() => {});
+        await fetch(`${BASE_URL}/gopro/camera/control/set_ui_controller?p=2`).catch(() => {});
+      } catch (e) {
+        console.warn('Wired control setup error:', e);
+      }
+    }
+
     // Show live status pills
     document.getElementById('live-rec-pill').style.display = 'flex';
     document.getElementById('live-batt-pill').style.display = 'flex';
@@ -133,7 +149,11 @@ async function pollCameraState() {
     const s = st.status || {};
     const settings = st.settings || {};
 
-    state.recording = !!s['8'];
+    // For debugging, print GoPro state status flags to console
+    console.log('GoPro State Status:', s);
+
+    // Modern GoPros (Hero 9+) use key 10 for encoding/recording. Legacy uses key 8.
+    state.recording = state.isModern ? !!s['10'] : !!s['8'];
     state.battery = s['70'] ?? s['2'] ?? null;
     state.remainingMinutes = s['54'] ?? null;
     state.cameraMode = s['43'] ?? null;
@@ -167,6 +187,16 @@ async function pollCameraState() {
       const m = state.remainingMinutes % 60;
       const label = h > 0 ? `${h}h ${m}m` : `${m}min`;
       document.getElementById('s-sd').textContent = `${state.battery || 100}% Batt · ${label} SD`;
+    }
+
+    // Handle SD card status warnings (33 is Primary Storage State)
+    const sdStatus = s['33'];
+    if (sdStatus === 2) {
+      document.getElementById('s-sd').textContent = `${state.battery || 100}% Batt · No SD Card`;
+    } else if (sdStatus === 1) {
+      document.getElementById('s-sd').textContent = `${state.battery || 100}% Batt · SD Full`;
+    } else if (sdStatus === 3) {
+      document.getElementById('s-sd').textContent = `${state.battery || 100}% Batt · SD Error`;
     }
   } catch(_) {}
 }
