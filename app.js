@@ -1038,6 +1038,12 @@ async function openShare() {
   }
   const url = state.serverInfo?.local_url || `http://localhost:8765`;
   document.getElementById('share-url').textContent = url;
+
+  const qrImg = document.getElementById('share-qr');
+  if (qrImg) {
+    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(url)}`;
+  }
+
   document.getElementById('share-overlay').classList.add('open');
 }
 

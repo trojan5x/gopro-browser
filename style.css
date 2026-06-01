@@ -1563,6 +1563,23 @@ button {
 }
 
 /* SHARE DIALOG */
+.share-qr-container {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0 20px 0;
+}
+
+.share-qr-image {
+  display: block;
+  width: 160px;
+  height: 160px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  padding: 8px;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
 .share-url-box {
   background: #f8fafc;
   border: 1px solid var(--border-color);
