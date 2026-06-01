@@ -2492,29 +2492,92 @@ button {
   z-index: 2;
 }
 
-/* Fallback signal if stream is offline or establishing */
-.viewfinder-no-signal {
+/* Recording-in-progress fallback UI (shown when MJPEG stream is unavailable) */
+.viewfinder-recording-state {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  color: var(--text-tertiary);
+  gap: 20px;
+  background: #0a0a0f;
   z-index: 1;
 }
 
-.viewfinder-no-signal svg {
-  width: 48px;
-  height: 48px;
-  color: var(--text-tertiary);
+.rec-animation {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
 }
 
-.viewfinder-no-signal span {
-  font-size: 12px;
-  font-weight: 500;
+.rec-camera-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.12);
+  border: 2px solid rgba(239, 68, 68, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: recPulse 2s ease-in-out infinite;
 }
+
+.rec-camera-icon svg {
+  width: 32px;
+  height: 32px;
+  color: #ef4444;
+}
+
+.rec-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 20px;
+  padding: 5px 14px;
+  color: #ef4444;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.rec-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: recBlink 1s ease-in-out infinite;
+}
+
+.rec-timer {
+  font-size: 36px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: #f1f5f9;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.rec-subtitle {
+  font-size: 12px;
+  color: rgba(241, 245, 249, 0.4);
+  letter-spacing: 0.05em;
+}
+
+@keyframes recPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.2); }
+  50% { box-shadow: 0 0 0 16px rgba(239, 68, 68, 0); transform: scale(1.04); }
+}
+
+@keyframes recBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
 
 .viewfinder-footer {
   padding: 16px 20px;

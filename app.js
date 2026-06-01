@@ -196,11 +196,21 @@ async function pollCameraState() {
       if (shutterLabel) shutterLabel.textContent = 'Stop';
       document.getElementById('btn-shutter').className = 'btn-secondary recording';
       
-      // Toggle viewfinder preview
+      // Show viewfinder with recording-in-progress UI (Hero 10 blocks MJPEG during recording)
       if (vf) {
         vf.classList.remove('hidden');
-        if (vfImg && !vfImg.getAttribute('src')) {
-          vfImg.setAttribute('src', `${PROXY_ORIGIN}/live-preview?t=${Date.now()}`);
+        // Start the recording timer if not already running
+        if (!state._recTimerInterval) {
+          state._recStart = Date.now();
+          state._recTimerInterval = setInterval(() => {
+            const el = document.getElementById('rec-timer');
+            if (!el) return;
+            const sec = Math.floor((Date.now() - state._recStart) / 1000);
+            const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+            const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+            const s = String(sec % 60).padStart(2, '0');
+            el.textContent = `${h}:${m}:${s}`;
+          }, 1000);
         }
       }
       grid.classList.add('hidden');
@@ -211,7 +221,16 @@ async function pollCameraState() {
       if (shutterLabel) shutterLabel.textContent = 'Record';
       document.getElementById('btn-shutter').className = 'btn-secondary';
       
-      // Stop viewfinder preview
+      // Stop recording timer
+      if (state._recTimerInterval) {
+        clearInterval(state._recTimerInterval);
+        state._recTimerInterval = null;
+        state._recStart = null;
+        const timerEl = document.getElementById('rec-timer');
+        if (timerEl) timerEl.textContent = '00:00:00';
+      }
+      
+      // Hide viewfinder
       if (vf) {
         vf.classList.add('hidden');
         if (vfImg) vfImg.removeAttribute('src');

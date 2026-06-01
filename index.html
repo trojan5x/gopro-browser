@@ -292,10 +292,21 @@
                 </div>
               </div>
               <div class="viewfinder-screen">
+                <!-- MJPEG stream (only works when not recording on Hero 10) -->
                 <img id="viewfinder-img" alt="GoPro Live Preview Feed">
-                <div class="viewfinder-no-signal">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2l20 20M5.636 5.636a9 9 0 0 1 12.728 0M7.757 7.757a6 6 0 0 1 8.486 0M9.879 9.879a3 3 0 0 1 4.242 0M12 12v.01"/></svg>
-                  <span>Connecting to Stream...</span>
+                <!-- Recording-in-progress fallback UI -->
+                <div class="viewfinder-recording-state" id="viewfinder-rec-state">
+                  <div class="rec-animation">
+                    <div class="rec-camera-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 10l4.553-2.07A1 1 0 0 1 21 8.845v6.31a1 1 0 0 1-1.447.916L15 14M3 8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z"/></svg>
+                    </div>
+                    <div class="rec-badge">
+                      <span class="rec-dot"></span>
+                      <span>REC</span>
+                    </div>
+                  </div>
+                  <div class="rec-timer" id="rec-timer">00:00:00</div>
+                  <div class="rec-subtitle">GoPro Hero 10 is recording</div>
                 </div>
               </div>
               <div class="viewfinder-footer">
