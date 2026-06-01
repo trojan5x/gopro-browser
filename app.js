@@ -173,19 +173,11 @@ async function pollCameraState() {
 
 // ── SHUTTER CONTROL ──────────────────────────────────────────────────
 async function toggleShutter() {
-  let endpoint;
-  if (state.isLegacy) {
-    endpoint = state.recording ? '/gp/gpControl/command/shutter?p=0' : '/gp/gpControl/command/shutter?p=1';
-  } else {
-    endpoint = state.recording ? '/gopro/camera/shutter/stop' : '/gopro/camera/shutter/start';
-  }
-  
+  const endpoint = state.recording ? '/gopro/camera/shutter/stop' : '/gopro/camera/shutter/start';
   try {
     const res = await fetch(`${BASE_URL}${endpoint}`);
-    if (!res.ok && res.status === 404 && !state.isLegacy) {
-      state.isLegacy = true;
-      const fallbackEndpoint = state.recording ? '/gp/gpControl/command/shutter?p=0' : '/gp/gpControl/command/shutter?p=1';
-      await fetch(`${BASE_URL}${fallbackEndpoint}`);
+    if (!res.ok) {
+      showToast(`Shutter failed: HTTP ${res.status}`, 'red');
     }
     setTimeout(pollCameraState, 500);
   } catch(_) { 
