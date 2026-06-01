@@ -199,8 +199,8 @@ async function pollCameraState() {
       // Toggle viewfinder preview
       if (vf) {
         vf.classList.remove('hidden');
-        if (vfImg && !vfImg.src) {
-          vfImg.src = `${PROXY_ORIGIN}/live-preview?t=${Date.now()}`;
+        if (vfImg && !vfImg.getAttribute('src')) {
+          vfImg.setAttribute('src', `${PROXY_ORIGIN}/live-preview?t=${Date.now()}`);
         }
       }
       grid.classList.add('hidden');
