@@ -362,8 +362,15 @@ button{font-family:var(--sans);cursor:pointer}
 .splash-btn.secondary{background:var(--elevated);color:var(--text2);border:1px solid var(--border)}
 .splash-btn.secondary:hover{color:var(--text);border-color:var(--border-hi)}
 .splash-checking{font-size:12px;color:var(--text3);display:flex;align-items:center;gap:6px}
-.splash-dot-spin{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--text3);border-top-color:var(--accent);animation:spin .7s linear infinite}
+.splash-dot-spin{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--text3);border-top-color:var(--accent);animation:spin .7s linear infinite;flex-shrink:0}
 @keyframes spin{to{transform:rotate(360deg)}}
+.splash-step-num.done{background:var(--accent);border-color:var(--accent);color:#000}
+.splash-step-num.done::after{content:'✓';font-size:10px}
+.splash-step-num.done span{display:none}
+.splash-step-num.spinning{border-top-color:var(--accent);animation:spin .7s linear infinite}
+.splash-step.done .splash-step-label{color:var(--text2)}
+.splash-step.active .splash-step-label{color:var(--accent)}
+.splash-step-status{font-size:11px;margin-top:4px;min-height:16px}
 </style>
 </head>
 <body>
@@ -375,31 +382,31 @@ button{font-family:var(--sans);cursor:pointer}
     <div class="splash-title">Connect your GoPro in seconds.</div>
     <div class="splash-sub">This app runs entirely in your browser — a small local proxy bridges your GoPro's USB connection. One-time setup, takes under 30 seconds.</div>
     <div class="splash-steps">
-      <div class="splash-step">
-        <div class="splash-step-num">1</div>
+      <div class="splash-step" id="ss1">
+        <div class="splash-step-num" id="ss1-num"><span>1</span></div>
         <div class="splash-step-body">
           <div class="splash-step-label">Run this in your terminal</div>
           <div class="splash-step-desc">Requires Python 3 (pre-installed on Mac). No installs, no dependencies.</div>
           <div class="splash-code" onclick="copyCmd(this)"><span>curl -s https://raw.githubusercontent.com/trojan5x/gopro-browser/main/gopro-proxy.py | python3</span><span class="splash-code-copy">copy</span></div>
+          <div class="splash-step-status" id="ss1-status"></div>
         </div>
       </div>
-      <div class="splash-step">
-        <div class="splash-step-num">2</div>
+      <div class="splash-step" id="ss2">
+        <div class="splash-step-num" id="ss2-num"><span>2</span></div>
         <div class="splash-step-body">
           <div class="splash-step-label">Plug in your GoPro via USB-C and press power</div>
           <div class="splash-step-desc">Works with GoPro Hero 10 and later. The camera's HTTP API activates automatically when powered on with USB connected.</div>
+          <div class="splash-step-status" id="ss2-status"></div>
         </div>
       </div>
     </div>
     <div class="splash-actions">
-      <button class="splash-btn primary" onclick="checkProxy()">
+      <button class="splash-btn primary" id="splash-btn" onclick="splashCheck()">
         <div class="splash-dot-spin" id="splash-spin" style="display:none"></div>
-        I've started the proxy →
+        <span id="splash-btn-label">I've started the proxy →</span>
       </button>
     </div>
-    <div id="splash-error" style="margin-top:14px;font-size:12px;color:var(--red);display:none">
-      Proxy not detected at localhost:8765. Make sure the terminal shows "Serving on → http://localhost:8765" then try again.
-    </div>
+    <div id="splash-error" style="margin-top:14px;font-size:12px;color:var(--red);display:none"></div>
   </div>
 </div>
 
@@ -540,11 +547,6 @@ button{font-family:var(--sans);cursor:pointer}
           <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
           <div class="empty-title" id="empty-title">Not connected</div>
           <div class="empty-sub" id="empty-sub">Plug in your GoPro Hero 10 via USB-C, press the power button, then click <strong>Connect</strong>.</div>
-          <div class="code-block" id="setup-hint">
-            <div class="comment"># Make sure the proxy is running:</div>
-            <div><span class="cmd">python3 gopro-proxy.py</span></div>
-            <div class="comment"># Then open localhost:8765</div>
-          </div>
         </div>
         <div id="media-grid" class="hidden"></div>
       </div>
@@ -1702,16 +1704,76 @@ function showToast(msg, type='') {
 }
 
 // ── SPLASH / PROXY DETECTION ─────────────────────────────────────────
-async function checkProxy() {
-  const btn = document.querySelector('#splash .splash-btn.primary');
+let splashPhase = 'proxy'; // 'proxy' | 'camera'
+
+function splashSetChecking(phase) {
   const spin = document.getElementById('splash-spin');
+  const btn  = document.getElementById('splash-btn');
   const err  = document.getElementById('splash-error');
-  btn.disabled = true; spin.style.display = 'flex'; err.style.display = 'none';
+  spin.style.display = 'flex'; btn.disabled = true; err.style.display = 'none';
+  if (phase === 'proxy') {
+    document.getElementById('ss1').classList.add('active');
+    document.getElementById('ss1-status').innerHTML = '<span style="color:var(--text3)">Checking…</span>';
+  } else {
+    document.getElementById('ss2').classList.add('active');
+    document.getElementById('ss2-status').innerHTML = '<span style="color:var(--text3)">Checking camera…</span>';
+  }
+}
+
+function splashSetDone(step) {
+  const num = document.getElementById(`ss${step}-num`);
+  num.classList.add('done');
+  document.getElementById(`ss${step}`).classList.remove('active');
+  document.getElementById(`ss${step}`).classList.add('done');
+  document.getElementById(`ss${step}-status`).innerHTML = '<span style="color:var(--green)">✓ Ready</span>';
+}
+
+function splashSetError(step, msg) {
+  const spin = document.getElementById('splash-spin');
+  const btn  = document.getElementById('splash-btn');
+  const err  = document.getElementById('splash-error');
+  spin.style.display = 'none'; btn.disabled = false;
+  document.getElementById(`ss${step}-status`).innerHTML = `<span style="color:var(--red)">${msg}</span>`;
+  err.style.display = 'none';
+}
+
+async function splashCheck() {
+  if (splashPhase === 'proxy') {
+    splashSetChecking('proxy');
+    try {
+      const r = await fetch(`${PROXY_ORIGIN}/info`, { signal: AbortSignal.timeout(3000) });
+      if (r.ok) {
+        splashSetDone(1);
+        splashPhase = 'camera';
+        document.getElementById('splash-btn-label').textContent = 'Check camera →';
+        document.getElementById('splash-spin').style.display = 'none';
+        document.getElementById('splash-btn').disabled = false;
+        // Auto-proceed to camera check
+        await splashCheckCamera();
+        return;
+      }
+    } catch(_) {}
+    splashSetError(1, 'Not detected — make sure the terminal shows "Serving on → http://localhost:8765"');
+  } else {
+    await splashCheckCamera();
+  }
+}
+
+async function splashCheckCamera() {
+  splashSetChecking('camera');
   try {
-    const r = await fetch(`${PROXY_ORIGIN}/info`, { signal: AbortSignal.timeout(3000) });
-    if (r.ok) { hideSplash(); return; }
+    const r = await fetch(`${BASE_URL}/gopro/camera/info`, { signal: AbortSignal.timeout(4000) });
+    if (r.ok) {
+      splashSetDone(2);
+      await new Promise(res => setTimeout(res, 600));
+      hideSplash();
+      return;
+    }
   } catch(_) {}
-  spin.style.display = 'none'; btn.disabled = false; err.style.display = 'block';
+  splashSetError(2, 'Camera not found — plug in via USB-C and press the power button');
+  document.getElementById('splash-btn-label').textContent = 'Try again →';
+  document.getElementById('splash-spin').style.display = 'none';
+  document.getElementById('splash-btn').disabled = false;
 }
 
 function hideSplash() {
@@ -1719,24 +1781,24 @@ function hideSplash() {
 }
 
 function copyCmd(el) {
-  navigator.clipboard.writeText('python3 gopro-proxy.py').catch(() => {});
+  const cmd = el.querySelector('span').textContent;
+  navigator.clipboard.writeText(cmd).catch(() => {});
   const copy = el.querySelector('.splash-code-copy');
   copy.textContent = 'copied!'; setTimeout(() => copy.textContent = 'copy', 1500);
 }
 
-function downloadProxy() {
-  const a = document.createElement('a');
-  a.href = `${PROXY_ORIGIN}/proxy-download`;
-  a.download = 'gopro-proxy.py'; a.click();
-}
-
-// Auto-detect proxy on load — skip splash if already running
+// Auto-detect on load — jump straight in if both proxy + camera are up
 (async () => {
   try {
     const r = await fetch(`${PROXY_ORIGIN}/info`, { signal: AbortSignal.timeout(1500) });
-    if (r.ok) { hideSplash(); return; }
+    if (!r.ok) return;
+    splashSetDone(1); splashPhase = 'camera';
+    const r2 = await fetch(`${BASE_URL}/gopro/camera/info`, { signal: AbortSignal.timeout(3000) });
+    if (r2.ok) { splashSetDone(2); await new Promise(res => setTimeout(res, 400)); hideSplash(); }
+    else {
+      document.getElementById('splash-btn-label').textContent = 'Check camera →';
+    }
   } catch(_) {}
-  // Not running — show splash (it's already visible by default)
 })();
 
 // ── KEYBOARD ──────────────────────────────────────────────────────────
