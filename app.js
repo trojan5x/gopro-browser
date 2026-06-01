@@ -155,7 +155,12 @@ async function pollCameraState() {
     // Modern GoPros (Hero 9+) use key 10 for encoding/recording. Legacy uses key 8.
     state.recording = state.isModern ? !!s['10'] : !!s['8'];
     state.battery = s['70'] ?? s['2'] ?? null;
-    state.remainingMinutes = s['54'] ?? null;
+    // Key 35 is remaining video time in seconds. Key 54 is SD card remaining space in KB.
+    let remainingMins = null;
+    if (s['35'] !== undefined && s['35'] < 4000000000) {
+      remainingMins = Math.floor(s['35'] / 60);
+    }
+    state.remainingMinutes = remainingMins;
     state.cameraMode = s['43'] ?? null;
     state.cameraSettings = settings;
 
@@ -179,25 +184,41 @@ async function pollCameraState() {
 
     if (state.battery !== null) {
       document.getElementById('live-batt').textContent = state.battery + '%';
-      document.getElementById('s-sd').textContent = state.battery + '% Batt';
     }
     
-    if (state.remainingMinutes !== null) {
+    let sdLabel = '0% Used';
+    let freeSpace = '';
+    if (s['54'] !== undefined && s['54'] > 0) {
+      const freeGB = (s['54'] / 1024 / 1024).toFixed(1);
+      freeSpace = `${freeGB} free`;
+    }
+    
+    let remainingLabel = '';
+    if (state.remainingMinutes !== null && state.remainingMinutes > 0) {
       const h = Math.floor(state.remainingMinutes / 60);
       const m = state.remainingMinutes % 60;
-      const label = h > 0 ? `${h}h ${m}m` : `${m}min`;
-      document.getElementById('s-sd').textContent = `${state.battery || 100}% Batt · ${label} SD`;
+      remainingLabel = h > 0 ? `${h}h ${m}m` : `${m}min`;
     }
-
+    
+    if (freeSpace && remainingLabel) {
+      sdLabel = `${freeSpace} · ${remainingLabel}`;
+    } else if (freeSpace) {
+      sdLabel = freeSpace;
+    } else if (remainingLabel) {
+      sdLabel = `${remainingLabel} remaining`;
+    }
+    
     // Handle SD card status warnings (33 is Primary Storage State)
     const sdStatus = s['33'];
     if (sdStatus === 2) {
-      document.getElementById('s-sd').textContent = `${state.battery || 100}% Batt · No SD Card`;
+      sdLabel = 'No SD Card';
     } else if (sdStatus === 1) {
-      document.getElementById('s-sd').textContent = `${state.battery || 100}% Batt · SD Full`;
+      sdLabel = 'SD Card Full';
     } else if (sdStatus === 3) {
-      document.getElementById('s-sd').textContent = `${state.battery || 100}% Batt · SD Error`;
+      sdLabel = 'SD Card Error';
     }
+    
+    document.getElementById('s-sd').textContent = sdLabel;
   } catch(_) {}
 }
 

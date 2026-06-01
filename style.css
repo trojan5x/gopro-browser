@@ -257,8 +257,9 @@ button {
 
 .storage-header {
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 6px;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
 }
 
 .storage-title {
@@ -293,23 +294,24 @@ button {
 .storage-segment.lrv { background: var(--accent-orange); }
 
 .storage-details {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 4px;
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 10px;
   color: var(--text-secondary);
+  margin-top: 4px;
 }
 
 .storage-detail-item {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .storage-color-dot {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
 }
 
