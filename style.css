@@ -2107,3 +2107,299 @@ button {
   background: var(--accent-red);
   color: #ffffff;
 }
+
+/* ── MOBILE MENU TOGGLE BUTTON (DEFAULT HIDDEN) ───────────────────── */
+.menu-toggle-btn {
+  display: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  background: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.menu-toggle-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.menu-toggle-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ── MOBILE RESPONSIVE STYLING (UNDER 768PX) ──────────────────────── */
+@media (max-width: 768px) {
+  
+  /* Reset App Grid to single column */
+  #app {
+    grid-template-columns: 1fr;
+  }
+
+  /* Sidebar becomes a slide-out drawer */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Sidebar Backdrop */
+  .sidebar-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(4px);
+    z-index: 199;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .sidebar-backdrop.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* Navigation & Top Bar adjustments */
+  .menu-toggle-btn {
+    display: flex;
+  }
+
+  .topbar {
+    padding: 0 16px;
+    gap: 8px;
+  }
+
+  .topbar-left {
+    gap: 8px;
+    flex-grow: 1;
+    overflow: hidden;
+  }
+
+  .breadcrumbs span:not(.current) {
+    display: none;
+  }
+
+  .breadcrumbs svg {
+    display: none;
+  }
+
+  /* Responsive Search bar */
+  .search-container {
+    width: 110px;
+    margin-left: auto;
+  }
+
+  .search-container:focus-within {
+    width: 150px;
+  }
+
+  .search-shortcut {
+    display: none;
+  }
+
+  /* Floating Sticky Bottom Control Bar */
+  .action-buttons {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    padding: 10px 20px;
+    border-radius: 99px;
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    gap: 10px;
+    z-index: 99;
+    width: calc(100% - 32px);
+    max-width: 360px;
+    justify-content: center;
+  }
+
+  .action-buttons button {
+    flex: 1;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  /* Prevent bottom bar overlap on grids and listings */
+  .media-container {
+    padding-bottom: 96px;
+  }
+
+  /* Status Bar details optimization */
+  .statusbar {
+    padding: 8px 16px;
+    font-size: 11px;
+  }
+
+  .statusbar-sep,
+  #sb-filter,
+  #sb-sort {
+    display: none;
+  }
+
+  /* Content view layout adjustments */
+  .controls-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 0 16px;
+  }
+
+  .controls-right {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+
+  /* Media Listing Grid Grid Density */
+  .media-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 12px;
+    padding: 0 16px;
+  }
+
+  /* Lightbox/File Detail Overlay to Full Screen */
+  #detail-panel {
+    height: 100%;
+    max-height: 100%;
+    width: 100%;
+    max-width: 100%;
+    border-radius: 0;
+    border: none;
+    grid-template-rows: 56px 1fr;
+  }
+
+  .detail-body {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .detail-preview-container {
+    width: 100%;
+    aspect-ratio: 16/10;
+    flex-shrink: 0;
+  }
+
+  .detail-meta-sidebar {
+    border-left: none;
+    border-top: 1px solid var(--border-color);
+    overflow-y: visible;
+    padding: 16px;
+  }
+
+  .detail-header-actions button {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .detail-header-actions button span {
+    display: none;
+  }
+
+  .detail-header-actions button svg {
+    margin-right: 0 !important;
+    width: 18px;
+    height: 18px;
+  }
+
+  /* General Dialog Modals turn into Bottom Sheets */
+  .modal-overlay {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .modal-panel {
+    max-width: 100%;
+    border-radius: 20px 20px 0 0;
+    border-bottom: none;
+    transform: translateY(100%);
+    transition: transform 0.25s cubic-bezier(0.32, 0.94, 0.6, 1);
+  }
+
+  .modal-overlay.open .modal-panel {
+    transform: translateY(0);
+  }
+
+  /* Download Tray bottom layout */
+  #dl-tray {
+    right: 0;
+    left: 0;
+    width: 100%;
+    border-left: none;
+    border-right: none;
+    border-radius: 16px 16px 0 0;
+  }
+
+  /* Selection Bar responsiveness */
+  .selection-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 16px;
+  }
+
+  .sel-info {
+    justify-content: space-between;
+  }
+
+  .sel-prefix-input {
+    width: 90px;
+  }
+
+  .sel-actions {
+    justify-content: flex-end;
+  }
+
+  /* Onboarding / Setup Splash Screen styling */
+  #splash {
+    padding: 16px;
+  }
+
+  .splash-card {
+    padding: 24px 16px;
+    border-radius: 12px;
+  }
+
+  .splash-code-block {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .splash-code-block span:first-child {
+    word-break: break-all;
+  }
+}

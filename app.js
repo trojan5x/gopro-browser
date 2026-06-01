@@ -54,6 +54,15 @@ const state = {
 document.addEventListener('DOMContentLoaded', () => {
   fetchServerInfo();
   setupKeyboardShortcuts();
+  
+  // Hook up automatic sidebar dismissal on link selection for mobile viewports
+  document.querySelectorAll('.sidebar a').forEach(link => {
+    link.addEventListener('click', () => {
+      if (window.innerWidth <= 768) {
+        toggleSidebar(false);
+      }
+    });
+  });
 });
 
 // ── SERVER INFO ──────────────────────────────────────────────────────
@@ -1435,3 +1444,21 @@ function setupKeyboardShortcuts() {
     }
   } catch(_) {}
 })();
+
+// ── MOBILE SIDEBAR DRAWER CONTROLLER ─────────────────────────────────
+function toggleSidebar(forceState) {
+  const sidebar = document.querySelector('.sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (!sidebar) return;
+  
+  const isOpen = sidebar.classList.contains('open');
+  const nextState = (forceState !== undefined) ? forceState : !isOpen;
+  
+  if (nextState) {
+    sidebar.classList.add('open');
+    backdrop?.classList.add('active');
+  } else {
+    sidebar.classList.remove('open');
+    backdrop?.classList.remove('active');
+  }
+}

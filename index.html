@@ -51,6 +51,8 @@
 
   <!-- MAIN APP CONTAINER -->
   <div id="app">
+    <!-- MOBILE SIDEBAR BACKDROP -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleSidebar(false)"></div>
     
     <!-- LEFT SIDEBAR -->
     <aside class="sidebar">
@@ -154,6 +156,11 @@
       <!-- TOP NAVIGATION BAR -->
       <header class="topbar">
         <div class="topbar-left">
+          <!-- MOBILE MENU TOGGLE -->
+          <button class="menu-toggle-btn" id="btn-menu-toggle" onclick="toggleSidebar(true)" title="Open Menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          
           <div class="nav-arrows">
             <button class="nav-arrow-btn" id="back-btn" onclick="closeSession()" disabled title="Go back">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="15 18 9 12 15 6"/></svg>
@@ -315,16 +322,17 @@
         <div class="detail-header-actions">
           <button class="btn-secondary" id="btn-lrv-toggle" onclick="toggleLRV()" title="Toggle proxy stream (.LRV)" style="display:none">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-            Proxy Stream
+            <span>Proxy</span>
           </button>
           
           <button class="btn-secondary" id="btn-clip-toggle" onclick="toggleClip()" title="Trim clip" style="display:none">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
-            Trim
+            <span>Trim</span>
           </button>
           
           <button class="btn-secondary" id="btn-hilight" onclick="addHilight()" title="Add HiLight tag" style="display:none">
-            ⚑ Hilight
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+            <span>Hilight</span>
           </button>
           
           <button class="modal-close" onclick="closeDetailBtn()" title="Close details">
