@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GoPro Browser</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- SPLASH / SETUP ONBOARDING SCREEN -->
+  <div id="splash">
+    <div class="splash-card">
+      <div class="splash-logo"><span>GP</span> BROWSER</div>
+      <h1 class="splash-title">Connect your GoPro in seconds</h1>
+      <p class="splash-desc">This app runs entirely in your browser. A small local proxy bridges your GoPro's USB connection to bypass browser security policies. Setup takes under 30 seconds.</p>
+      
+      <div class="splash-steps">
+        <div class="splash-step" id="ss1">
+          <div class="splash-step-num" id="ss1-num">1</div>
+          <div class="splash-step-body">
+            <div class="splash-step-title">Run the local proxy server</div>
+            <div class="splash-step-desc">Open your terminal, copy this command, paste it, and press Enter:</div>
+            <div class="splash-code-block" onclick="copyCmd(this)">
+              <span>curl -s https://raw.githubusercontent.com/trojan5x/gopro-browser/main/gopro-proxy.py | python3</span>
+              <span class="splash-code-copy">copy</span>
+            </div>
+            <div class="splash-step-status" id="ss1-status"></div>
+          </div>
+        </div>
+        
+        <div class="splash-step" id="ss2">
+          <div class="splash-step-num" id="ss2-num">2</div>
+          <div class="splash-step-body">
+            <div class="splash-step-title">Plug in GoPro and power it on</div>
+            <div class="splash-step-desc">Connect the camera to your Mac or Windows PC via USB-C, then press the physical power button on the GoPro.</div>
+            <div class="splash-step-status" id="ss2-status"></div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="splash-footer">
+        <button class="btn-primary" id="splash-btn" onclick="splashCheck()">
+          <span class="splash-btn-spin" id="splash-spin" style="display:none"></span>
+          <span id="splash-btn-label">I've started the proxy →</span>
+        </button>
+      </div>
+      <div id="splash-error" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- MAIN APP CONTAINER -->
+  <div id="app">
+    
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar">
+      <div class="logo-container">
+        <div class="logo-icon">GP</div>
+        gopro<span>browser</span>
+      </div>
+      
+      <nav class="sb-menu">
+        <a href="#" class="sb-menu-item active" id="menu-media" onclick="event.preventDefault(); showSection('media')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+          File Manager
+        </a>
+        <a href="#" class="sb-menu-item" id="menu-search" onclick="event.preventDefault(); focusSearch()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Search File
+        </a>
+        <a href="#" class="sb-menu-item" id="menu-favorites" onclick="event.preventDefault(); filterHighlights()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          HiLights
+        </a>
+        <a href="#" class="sb-menu-item" id="menu-share" onclick="event.preventDefault(); openShare()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          Share
+        </a>
+        <a href="#" class="sb-menu-item" id="menu-help" onclick="event.preventDefault(); toggleHelp()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Help & Instructions
+        </a>
+      </nav>
+      
+      <div class="sb-group">
+        <div class="sb-group-title">Labels</div>
+        <div class="sb-label-list">
+          <a href="#" class="sb-label-item" onclick="event.preventDefault(); setFilter('all', this)">
+            <div class="sb-label-left">
+              <span class="sb-label-dot blue"></span>
+              All Files
+            </div>
+            <span class="count" id="fc-all">0</span>
+          </a>
+          <a href="#" class="sb-label-item" onclick="event.preventDefault(); setFilter('mp4', this)">
+            <div class="sb-label-left">
+              <span class="sb-label-dot blue"></span>
+              Videos
+            </div>
+            <span class="count" id="fc-mp4">0</span>
+          </a>
+          <a href="#" class="sb-label-item" onclick="event.preventDefault(); setFilter('jpg', this)">
+            <div class="sb-label-left">
+              <span class="sb-label-dot green"></span>
+              Photos
+            </div>
+            <span class="count" id="fc-jpg">0</span>
+          </a>
+          <a href="#" class="sb-label-item" onclick="event.preventDefault(); setFilter('lrv', this)">
+            <div class="sb-label-left">
+              <span class="sb-label-dot orange"></span>
+              Proxies
+            </div>
+            <span class="count" id="fc-lrv">0</span>
+          </a>
+        </div>
+      </div>
+      
+      <div class="sb-footer">
+        <!-- STORAGE WIDGET -->
+        <div class="storage-widget">
+          <div class="storage-header">
+            <span class="storage-title">Storage Card</span>
+            <span class="storage-amount" id="s-sd">0% Used</span>
+          </div>
+          <div class="storage-progress-bar">
+            <div class="storage-segment video" id="sb-vid-bar" style="width: 0%"></div>
+            <div class="storage-segment photo" id="sb-pic-bar" style="width: 0%"></div>
+            <div class="storage-segment lrv" id="sb-lrv-bar" style="width: 0%"></div>
+          </div>
+          <div class="storage-details">
+            <div class="storage-detail-item">
+              <span class="storage-color-dot" style="background:var(--accent)"></span>
+              Videos: <span id="stor-vid">0B</span>
+            </div>
+            <div class="storage-detail-item">
+              <span class="storage-color-dot" style="background:var(--accent-green)"></span>
+              Photos: <span id="stor-pic">0B</span>
+            </div>
+          </div>
+        </div>
+        
+        <a href="#" class="sb-footer-btn" onclick="event.preventDefault(); openSettings()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Settings
+        </a>
+      </div>
+    </aside>
+    
+    <!-- MAIN VIEWPORT -->
+    <main class="main-viewport">
+      
+      <!-- TOP NAVIGATION BAR -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="nav-arrows">
+            <button class="nav-arrow-btn" id="back-btn" onclick="closeSession()" disabled title="Go back">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <button class="nav-arrow-btn" id="btn-last" onclick="openLastCaptured()" disabled title="Open latest media">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            </button>
+          </div>
+          
+          <div class="breadcrumbs">
+            <span>GoPro</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="9 18 15 12 9 6"/></svg>
+            <span>DCIM</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="9 18 15 12 9 6"/></svg>
+            <span class="current" id="breadcrumb">All Media</span>
+          </div>
+        </div>
+        
+        <div class="topbar-right">
+          <!-- SEARCH FIELD -->
+          <div class="search-container">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="search" class="search-input" placeholder="Search file..." oninput="filterSearch(this.value)">
+            <span class="search-shortcut">⌘F</span>
+          </div>
+          
+          <!-- LIVE STATUS INDICATORS -->
+          <div class="status-indicators">
+            <div class="status-pill" id="conn-status">
+              <span class="status-dot"></span>
+              <span id="conn-label">Not Connected</span>
+            </div>
+            
+            <div class="status-pill" id="live-rec-pill" style="display:none">
+              <span class="status-dot"></span>
+              <span id="live-rec-label">Idle</span>
+            </div>
+            
+            <div class="status-pill" id="live-batt-pill" style="display:none">
+              <span id="live-batt">100%</span>
+            </div>
+          </div>
+          
+          <!-- ACTION CONTROL PANEL -->
+          <div class="action-buttons">
+            <button class="btn-secondary" id="btn-shutter" onclick="toggleShutter()" disabled style="display:none">
+              <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
+              Record
+            </button>
+            <button class="btn-secondary" id="btn-refresh" onclick="loadMedia()" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+              Sync
+            </button>
+            <button class="btn-primary" id="btn-connect" onclick="connectCamera()">Connect</button>
+          </div>
+        </div>
+      </header>
+      
+      <!-- CONTENT VIEWPORT -->
+      <div class="content-viewport">
+        
+        <!-- SELECTION ACTION BAR (SLIDES IN WHEN ITEMS SELECT) -->
+        <div class="selection-bar" id="sel-bar">
+          <div class="sel-info">
+            <span class="sel-count" id="sel-count-label">0 files selected</span>
+            <div class="sel-prefix-wrap">
+              <label for="dl-prefix">Prefix</label>
+              <input type="text" id="dl-prefix" class="sel-prefix-input" placeholder="e.g. Session_">
+            </div>
+          </div>
+          <div class="sel-actions">
+            <button class="sel-btn download" onclick="downloadSelected()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download
+            </button>
+            <button class="sel-btn delete" onclick="deleteSelected()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+              Delete
+            </button>
+            <button class="sel-btn clear" onclick="clearSelection()">Cancel</button>
+          </div>
+        </div>
+        
+        <!-- CONTROLS & VIEWS HEADER -->
+        <div class="controls-header">
+          <div class="controls-left">
+            <h2 class="section-title" id="content-title">Media Files</h2>
+          </div>
+          
+          <div class="controls-right">
+            <div class="sort-container">
+              <button class="sort-btn active" id="sort-date" onclick="setSort('date', this)">Date ↓</button>
+              <button class="sort-btn" id="sort-name" onclick="setSort('name', this)">Name</button>
+              <button class="sort-btn" id="sort-size" onclick="setSort('size', this)">Size</button>
+            </div>
+            
+            <div class="view-toggles">
+              <button class="view-toggle-btn active" id="vbtn-grid" onclick="setView('grid', this)" title="Grid view">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+              </button>
+              <button class="view-toggle-btn" id="vbtn-list" onclick="setView('list', this)" title="List view">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              </button>
+              <button class="view-toggle-btn" id="vbtn-grouped" onclick="setView('grouped', this)" title="Session group view">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="5"/><rect x="14" y="3" width="7" height="5"/><rect x="3" y="11" width="18" height="2"/><rect x="3" y="16" width="18" height="2"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- GRID AND FILE LISTING CANVAS -->
+        <div class="media-container">
+          <div id="empty-state">
+            <svg style="width:48px;height:48px;color:var(--text-tertiary);margin-bottom:12px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+            <h3 style="font-size:14px;font-weight:700;margin-bottom:4px;" id="empty-title">Camera Not Connected</h3>
+            <p style="font-size:12px;color:var(--text-secondary);max-width:320px;line-height:1.6;" id="empty-sub">Plug in your GoPro Hero 10 via USB-C, press the power button, and click <strong>Connect</strong> in the top bar.</p>
+          </div>
+          
+          <div id="media-grid" class="media-grid hidden"></div>
+        </div>
+        
+        <!-- FOOTER STATUS BAR -->
+        <footer class="statusbar">
+          <span id="sb-count">0 files</span>
+          <span class="statusbar-sep"></span>
+          <span id="sb-filter">Showing all</span>
+          <span class="statusbar-sep"></span>
+          <span id="sb-sort">by date</span>
+          
+          <div class="statusbar-right">
+            <span id="sb-viewed" style="color:var(--text-tertiary)">0 viewed</span>
+          </div>
+        </footer>
+      </div>
+    </main>
+  </div>
+
+  <!-- DOWNLOAD TRAY -->
+  <div id="dl-tray">
+    <div class="tray-header" onclick="toggleTray()">
+      <div>
+        <div class="tray-title">Downloads</div>
+        <div class="tray-sub" id="dl-tray-sub">0 active</div>
+      </div>
+      <div class="tray-actions">
+        <button class="tray-action-btn" onclick="event.stopPropagation(); clearDoneDL()">Clear completed</button>
+        <button class="tray-action-btn" onclick="event.stopPropagation(); toggleTray()">✕</button>
+      </div>
+    </div>
+    <div class="tray-list" id="dl-tray-list"></div>
+  </div>
+
+  <!-- LIGHTBOX / FILE DETAIL MODAL -->
+  <div id="detail-overlay" onclick="closeDetail(event)">
+    <div id="detail-panel">
+      
+      <div class="detail-header">
+        <div class="detail-filename" id="detail-filename">GX010001.MP4</div>
+        <div class="detail-header-actions">
+          <button class="btn-secondary" id="btn-lrv-toggle" onclick="toggleLRV()" title="Toggle proxy stream (.LRV)" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            Proxy Stream
+          </button>
+          
+          <button class="btn-secondary" id="btn-clip-toggle" onclick="toggleClip()" title="Trim clip" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+            Trim
+          </button>
+          
+          <button class="btn-secondary" id="btn-hilight" onclick="addHilight()" title="Add HiLight tag" style="display:none">
+            ⚑ Hilight
+          </button>
+          
+          <button class="modal-close" onclick="closeDetailBtn()" title="Close details">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+      
+      <div class="detail-body">
+        <!-- PREVIEW BOX -->
+        <div class="detail-preview-container" id="detail-preview">
+          <button class="detail-nav-btn prev" id="detail-prev" onclick="navigateDetail(-1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <button class="detail-nav-btn next" id="detail-next" onclick="navigateDetail(1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          
+          <div class="video-trimming-overlay" id="video-overlay">
+            <button class="trim-btn" onclick="setClipPoint('start')">↦ Set In</button>
+            <button class="trim-btn" onclick="setClipPoint('end')">Set Out ↤</button>
+            <button class="trim-btn" onclick="document.querySelector('#detail-preview video')?.requestFullscreen()">⛶ Fullscreen</button>
+          </div>
+          
+          <!-- TRIM EDITOR ACTION SLIDE -->
+          <div class="clip-editor-panel" id="clip-controls">
+            <div class="clip-inputs">
+              <div class="clip-field">
+                <label>In</label>
+                <input type="number" class="clip-input" id="clip-start" placeholder="0" min="0" step="0.1">
+              </div>
+              <div class="clip-field">
+                <label>Out</label>
+                <input type="number" class="clip-input" id="clip-end" placeholder="End" min="0" step="0.1">
+              </div>
+            </div>
+            <button class="btn-primary" onclick="exportClip()" id="btn-export-clip">Export Cut</button>
+          </div>
+        </div>
+        
+        <!-- SIDEBAR INFO PANEL -->
+        <div class="detail-meta-sidebar">
+          <div>
+            <div class="meta-section-title">File Information</div>
+            <div class="meta-grid">
+              <div class="meta-item"><div class="meta-label">Name</div><div class="meta-value" id="dm-name">—</div></div>
+              <div class="meta-item"><div class="meta-label">Type</div><div class="meta-value" id="dm-type">—</div></div>
+              <div class="meta-item"><div class="meta-label">Size</div><div class="meta-value" id="dm-size">—</div></div>
+              <div class="meta-item"><div class="meta-label">Created</div><div class="meta-value" id="dm-created">—</div></div>
+              <div class="meta-item"><div class="meta-label">Modified</div><div class="meta-value" id="dm-modified">—</div></div>
+              <div class="meta-item"><div class="meta-label">Directory</div><div class="meta-value" id="dm-dir">—</div></div>
+            </div>
+          </div>
+          
+          <div class="detail-actions">
+            <div class="meta-section-title">Actions</div>
+            <button class="detail-action-btn dl" onclick="downloadCurrent()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download
+            </button>
+            <button class="detail-action-btn dl-lrv" id="btn-dl-lrv" style="display:none" onclick="downloadLRVCurrent()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Proxy (.LRV)
+            </button>
+            <button class="detail-action-btn del" onclick="deleteCurrent()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div id="settings-overlay" class="modal-overlay" onclick="closeModal('settings-overlay', event)">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <span class="modal-title">Camera Info & Settings</span>
+        <button class="modal-close" onclick="closeModal('settings-overlay')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="settings-grid" id="settings-rows"></div>
+        <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 8px;">
+          <button class="btn-secondary" onclick="openChecklist(); closeModal('settings-overlay')">Run Checklist</button>
+          <button class="btn-secondary" onclick="exportManifest(); closeModal('settings-overlay')">Export Manifest (CSV)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHECKLIST MODAL -->
+  <div id="checklist-overlay" class="modal-overlay" onclick="closeModal('checklist-overlay', event)">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <span class="modal-title">Pre-Ride Checklist</span>
+        <button class="modal-close" onclick="closeModal('checklist-overlay')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="checklist-container" id="checklist-items"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHARE URL MODAL -->
+  <div id="share-overlay" class="modal-overlay" onclick="closeModal('share-overlay', event)">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <span class="modal-title">Share Media Library</span>
+        <button class="modal-close" onclick="closeModal('share-overlay')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="share-url-box" id="share-url">http://localhost:8765</div>
+        <p class="share-desc">Other devices on your local network can access your GoPro media library using this link. Make sure they are connected to the same Wi-Fi network.</p>
+        <button class="btn-primary" style="width: 100%" onclick="copyShareUrl()">Copy Address</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST ALERT WRAPPER -->
+  <div id="toast">Alert Message</div>
+
+  <!-- MAIN SCRIPT LOAD -->
+  <script src="app.js"></script>
+</body>
+</html>

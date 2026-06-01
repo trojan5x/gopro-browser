@@ -25,13 +25,15 @@ from pathlib import Path
 
 PORT       = 8765
 GOPRO_BASE = "http://172.27.123.51:8080"
-HTML_FILE  = Path(__file__).parent / "gopro-browser.html"
+HTML_FILE  = Path(__file__).parent / "index.html"
+HTML_FALLBACK = Path(__file__).parent / "gopro-browser.html"
 
 CORS_HEADERS = {
     "Access-Control-Allow-Origin":  "*",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers": "*",
 }
+
 
 
 def get_local_ip():
@@ -80,7 +82,16 @@ class GoProProxyHandler(http.server.BaseHTTPRequestHandler):
         path = self.path
 
         if path in ("/", "/index.html", "/gopro-browser.html"):
-            self._serve_html()
+            html_path = HTML_FILE if HTML_FILE.exists() else HTML_FALLBACK
+            self._serve_static(html_path, "text/html; charset=utf-8")
+            return
+
+        if path == "/style.css":
+            self._serve_static(Path(__file__).parent / "style.css", "text/css; charset=utf-8")
+            return
+
+        if path == "/app.js":
+            self._serve_static(Path(__file__).parent / "app.js", "application/javascript; charset=utf-8")
             return
 
         if path == "/info" or path.startswith("/info?"):
@@ -102,16 +113,16 @@ class GoProProxyHandler(http.server.BaseHTTPRequestHandler):
 
         self._json_error(404, "not found")
 
-    # ── Static HTML ──────────────────────────────────────────────────
+    # ── Static Files ──────────────────────────────────────────────────
 
-    def _serve_html(self):
-        if not HTML_FILE.exists():
-            self._json_error(404, f"gopro-browser.html not found at {HTML_FILE}")
+    def _serve_static(self, filepath, content_type):
+        if not filepath.exists():
+            self._json_error(404, f"{filepath.name} not found at {filepath}")
             return
-        content = HTML_FILE.read_bytes()
+        content = filepath.read_bytes()
         self.send_response(200)
         self.send_cors()
-        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(content)))
         self.end_headers()
         self.wfile.write(content)
@@ -272,10 +283,10 @@ class GoProProxyHandler(http.server.BaseHTTPRequestHandler):
 def main():
     local_ip   = get_local_ip()
     ffmpeg_ok  = has_ffmpeg()
-    html_ok    = HTML_FILE.exists()
+    html_ok    = HTML_FILE.exists() or HTML_FALLBACK.exists()
 
     if not html_ok:
-        print(f"\n  \033[33m⚠  gopro-browser.html not found at {HTML_FILE}\033[0m\n")
+        print(f"\n  \033[33m⚠  index.html not found at {HTML_FILE}\033[0m\n")
 
     print(f"""
   \033[1mGoPro Browser Proxy\033[0m
