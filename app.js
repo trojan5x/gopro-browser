@@ -40,6 +40,7 @@ const state = {
   serverInfo: null, 
   useLRV: false, 
   showClip: false,
+  isLegacy: false,
 };
 
 // ── INIT ─────────────────────────────────────────────────────────────
@@ -80,8 +81,12 @@ async function connectCamera() {
 
   try {
     let info = null;
+    state.isLegacy = false;
     try { info = await gopro('/gopro/camera/info'); } catch(_) {}
-    if (!info) info = await gopro('/gp/gpControl/info');
+    if (!info) {
+      info = await gopro('/gp/gpControl/info');
+      state.isLegacy = true;
+    }
 
     state.connected = true;
     setConnStatus('connected', 'Connected');
@@ -138,16 +143,17 @@ async function pollCameraState() {
     const recDot = document.querySelector('#live-rec-pill .status-dot');
     const recLabel = document.getElementById('live-rec-label');
     const recPill = document.getElementById('live-rec-pill');
+    const shutterLabel = document.getElementById('shutter-label');
     
     if (state.recording) {
       recPill.className = 'status-pill recording';
       recLabel.textContent = 'REC';
-      document.getElementById('btn-shutter').textContent = 'Stop';
+      if (shutterLabel) shutterLabel.textContent = 'Stop';
       document.getElementById('btn-shutter').className = 'btn-secondary recording';
     } else {
       recPill.className = 'status-pill';
       recLabel.textContent = 'Idle';
-      document.getElementById('btn-shutter').textContent = 'Record';
+      if (shutterLabel) shutterLabel.textContent = 'Record';
       document.getElementById('btn-shutter').className = 'btn-secondary';
     }
 
@@ -167,9 +173,20 @@ async function pollCameraState() {
 
 // ── SHUTTER CONTROL ──────────────────────────────────────────────────
 async function toggleShutter() {
-  const endpoint = state.recording ? '/gopro/camera/shutter/stop' : '/gopro/camera/shutter/start';
+  let endpoint;
+  if (state.isLegacy) {
+    endpoint = state.recording ? '/gp/gpControl/command/shutter?p=0' : '/gp/gpControl/command/shutter?p=1';
+  } else {
+    endpoint = state.recording ? '/gopro/camera/shutter/stop' : '/gopro/camera/shutter/start';
+  }
+  
   try {
-    await fetch(`${BASE_URL}${endpoint}`);
+    const res = await fetch(`${BASE_URL}${endpoint}`);
+    if (!res.ok && res.status === 404 && !state.isLegacy) {
+      state.isLegacy = true;
+      const fallbackEndpoint = state.recording ? '/gp/gpControl/command/shutter?p=0' : '/gp/gpControl/command/shutter?p=1';
+      await fetch(`${BASE_URL}${fallbackEndpoint}`);
+    }
     setTimeout(pollCameraState, 500);
   } catch(_) { 
     showToast('Shutter command failed', 'red'); 
